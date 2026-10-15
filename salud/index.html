@@ -234,7 +234,7 @@ const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
 const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
 const hhmm=d=>d.toTimeString().slice(0,5);
 const DN=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-const TIPOS=["Club + NOC","Solo NOC","Jornada club","Libre","Otro"];
+const TIPOS=["Club + NOC","Solo club","Solo NOC","Jornada club","Libre","Otro"];
 const MOTIVOS=["Hambre","Cansancio","Ansiedad","Aburrimiento","Social"];
 const FASES=[["sueño","Acostarme dentro de mi bloque","Sueño en el bloque (±1 h del objetivo)"],["comidas","Sin picoteos de madrugada","Jornadas sin picoteos entre 00 y 06"],["movimiento","Moverme todos los días","Jornadas con caminata o fuerza"]];
 const mins=(a,b)=>{if(!a||!b)return null;const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);return((h2*60+m2)-(h1*60+m1)+1440)%1440};
@@ -246,7 +246,7 @@ const jornadaHoy=()=>jornadaDe(new Date());
 let bloqueo=0,undoT=null,energiaF=null,calidadF=null,calidadV=null;
 
 let col=null,dias={},menu={},menuMeta=null,cur=null;
-let cfg={semana:{1:["Club + NOC","14:00","21:30"],2:["Solo NOC","09:00","16:00"],3:["Club + NOC","14:00","21:30"],4:["Club + NOC","14:00","21:30"],5:["Club + NOC","14:00","21:30"],6:["Jornada club","18:00","06:30"],0:["Libre","22:00","05:30"]},identidad:"Soy alguien que cuida su descanso y lo que come",inicio:jornadaHoy(),revisiones:{},diaPeso:0};
+let cfg={semana:{1:["Solo club","14:00","21:30"],2:["Solo NOC","09:00","16:00"],3:["Club + NOC","14:00","21:30"],4:["Club + NOC","14:00","21:30"],5:["Club + NOC","14:00","21:30"],6:["Jornada club","18:00","06:30"],0:["Libre","22:00","05:30"]},identidad:"Soy alguien que cuida su descanso y lo que come",inicio:jornadaHoy(),revisiones:{},diaPeso:0};
 let energia=null,hambre=null,motivo=null,kind=null,agua=0;
 
 function chips(el,vals,on){vals.forEach(v=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=v;b.setAttribute("aria-pressed","false");b.onclick=()=>on(v);el.appendChild(b)})}
