@@ -1,0 +1,46 @@
+name: Menú Social Lunch → Salud
+
+on:
+  schedule:
+    - cron: "51 6 * * *"   # 03:51 hora Argentina
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SL_USER: ${{ secrets.SL_USER }}
+      SL_PASS: ${{ secrets.SL_PASS }}
+      OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_DB_URL: https://apps-personales-50cea-default-rtdb.firebaseio.com
+    steps:
+      - name: Revisar secretos
+        id: check
+        run: |
+          if [ -z "$SL_USER" ] || [ -z "$SL_PASS" ] || [ -z "$OWNER_EMAIL" ] || [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Faltan secretos (SL_USER, SL_PASS, OWNER_EMAIL, FIREBASE_SERVICE_ACCOUNT). No se sincroniza."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ok == 'true'
+        with:
+          node-version: 20
+      - name: Instalar dependencias
+        if: steps.check.outputs.ok == 'true'
+        working-directory: tools/social-lunch
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Sincronizar menú
+        if: steps.check.outputs.ok == 'true'
+        working-directory: tools/social-lunch
+        run: node sync.mjs
