@@ -196,7 +196,7 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
   <section class="card" aria-labelledby="t-exp">
     <h2 id="t-exp">Exportar</h2>
     <div class="row"><label class="ey">Desde <input type="date" id="xDesde"></label><label class="ey">Hasta <input type="date" id="xHasta"></label></div>
-    <div class="row"><button class="pri" id="xPdf">Descargar PDF</button><span class="msg" id="xMsg" role="status"></span></div>
+    <div class="row"><button class="pri" id="xPdf">Descargar PDF</button><button class="ghost" id="bkBtn">Descargar respaldo</button><span class="msg" id="xMsg" role="status"></span></div>
   </section>
 </div>
 
@@ -457,4 +457,10 @@ $("aOk").onclick=async()=>{if($("aReal").value===""){$("aPrev").textContent="Pon
   const f=new Date().toLocaleDateString("en-CA");
   try{await db.collection("vars").add({tipo:d>0?"ingreso":"gasto",monto:Math.abs(d),fecha:f,mes:f.slice(0,7),cat:d>0?"":"Ajuste",sub:"",impulso:false,motivo:"",nota:"Ajuste de saldo",ajuste:true});
     $("aBox").hidden=true;$("msg").textContent=`Ajuste de ${fmt(Math.abs(d))} cargado. Ahora el disponible es ${fmt(r)}.`}catch(e){$("msg").textContent="No se guardó."}};
+
+$("bkBtn").onclick=async()=>{try{await claude.use("db");const u=firebase.auth().currentUser;if(!u){$("xMsg").textContent="Entrá con tu cuenta primero.";return}
+  const s=await firebase.database().ref("users/"+u.uid+"/"+APP_NODE).get(),f=new Date().toLocaleDateString("en-CA");
+  const data=JSON.stringify({app:APP_NODE,fecha:f,datos:s.val()||{}},null,1);
+  const dl=await claude.use("downloads");await dl.save({filename:`respaldo_economia_${f}.json`,data});$("xMsg").textContent="Respaldo descargado. Guardalo en Drive o en la compu."}
+  catch(e){$("xMsg").textContent="No se pudo descargar el respaldo."}};
 </script></body></html>

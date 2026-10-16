@@ -132,7 +132,7 @@ summary{cursor:pointer;color:var(--mute);font-weight:700;font-size:.9rem}
       <div><div class="lbl">Desde</div><input type="date" id="desde"></div>
       <div><div class="lbl">Hasta</div><input type="date" id="hasta"></div>
     </div>
-    <div class="row"><button class="pri" id="dPdf">Descargar PDF para el nutricionista</button><span class="msg" id="dMsg" role="status"></span></div>
+    <div class="row"><button class="pri" id="dPdf">Descargar PDF para el nutricionista</button><button class="ghost" id="bkBtn">Descargar respaldo</button><span class="msg" id="dMsg" role="status"></span></div>
   </div>
   </section>
 
@@ -609,4 +609,10 @@ setInterval(renderTodo,60000);
 </script>
 <div id="login" hidden style="position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;padding:24px"><div style="display:grid;gap:14px;max-width:320px;text-align:center"><h1 style="margin:0">Salud</h1><p style="margin:0;color:var(--mute)">Entrá con tu cuenta de Google para ver tus datos.</p><button class="pri" onclick="entrar()" style="font-size:1rem;padding:12px">Entrar con Google</button><span id="loginMsg" style="color:var(--mute);font-size:.9rem"></span></div></div>
 <p style="text-align:center;margin:0 0 24px"><button class="ghost" onclick="salir()" style="font-size:.85rem">Cerrar sesión</button></p>
-<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")</script></body></html>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")
+$("bkBtn").onclick=async()=>{try{await claude.use("db");const u=firebase.auth().currentUser;if(!u){$("dMsg").textContent="Entrá con tu cuenta primero.";return}
+  const s=await firebase.database().ref("users/"+u.uid+"/"+APP_NODE).get(),f=new Date().toLocaleDateString("en-CA");
+  const data=JSON.stringify({app:APP_NODE,fecha:f,datos:s.val()||{}},null,1);
+  const dl=await claude.use("downloads");await dl.save({filename:`respaldo_salud_${f}.json`,data});$("dMsg").textContent="Respaldo descargado. Guardalo en Drive o en la compu."}
+  catch(e){$("dMsg").textContent="No se pudo descargar el respaldo."}};
+</script></body></html>
