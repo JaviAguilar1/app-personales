@@ -1,4 +1,5 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#16795A"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#16795A"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}details.plg>summary{list-style:none;cursor:pointer}details.plg>summary::-webkit-details-marker{display:none}details.plg>summary h2::after{content:" ▸";color:var(--mute);font-size:.8em}details.plg[open]>summary h2::after{content:" ▾"}details.plg[open]>summary{margin-bottom:8px}
+</style><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
@@ -175,23 +176,23 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
   </section>
 
   <section class="card" id="proxCard" aria-labelledby="t-prox">
-    <div class="row sp"><h2 id="t-prox">Próximos 7 días</h2><span class="ey" id="proxN"></span></div>
-    <div id="prox"></div>
+    <details class="plg" id="dProx"><summary class="row sp"><h2 id="t-prox">Próximos 7 días</h2><span class="ey" id="proxN"></span></summary>
+    <div id="prox"></div></details>
   </section>
 
   <section class="card" aria-labelledby="t-mes">
-    <h2 id="t-mes">El mes</h2>
+    <details class="plg" id="dMes"><summary class="row sp"><h2 id="t-mes">El mes</h2><span class="ey" id="mesN"></span></summary>
     <h3>Ingresos</h3><div id="lIng"></div>
     <h3>Gastos y cuotas</h3><div id="lGas"></div>
-    <div id="lOmit"></div>
+    <div id="lOmit"></div></details>
   </section>
 
   <section class="card" aria-labelledby="t-pend">
-    <div class="row sp"><h2 id="t-pend">Deudas a eliminar</h2><span class="ey" id="pendTot"></span></div>
+    <details class="plg" id="dPend"><summary class="row sp"><h2 id="t-pend">Deudas a eliminar</h2><span class="ey" id="pendTot"></span></summary>
     <span class="ey" id="pendRes" style="color:var(--ok);font-weight:700"></span>
     <div class="ed" id="planBox" style="display:grid;gap:6px;background:var(--accbg)"></div>
     <div class="tw" id="compTabla"></div>
-    <div id="pend"><p class="empty">Sin deudas cargadas.</p></div>
+    <div id="pend"><p class="empty">Sin deudas cargadas.</p></div></details>
   </section>
 
   <section class="card" aria-labelledby="t-exp">
@@ -240,6 +241,7 @@ function render(){
    $("sPag").textContent=fmt(pag);$("sFal").textContent=fmt(tG-pag);$("sVar").textContent=fmt(vGH);
    $("barra").style.width=(tG?Math.round(pag/tG*100):0)+"%";
    $("proy").textContent=iH.length||vH.length?`Si cobrás y pagás todo lo previsto: ${proy<0?"te faltan":"te quedan"} ${fmt(Math.abs(proy))}.`:"";}
+  $("mesN").textContent=`${gas.filter(x=>x.mov).length+ing.filter(x=>x.mov).length}/${gas.length+ing.length} marcados`;
   $("lIng").innerHTML=ing.length?ing.map(fila).join(""):'<p class="empty">Sin ingresos este mes. Cargalos en la tuerquita.</p>';
   $("lGas").innerHTML=gas.length?gas.map(fila).join(""):'<p class="empty">Sin gastos fijos este mes. Cargalos en la tuerquita.</p>';
   const om=omitidos(mes);$("lOmit").innerHTML=om.length?`<details><summary class="ey" style="cursor:pointer;font-weight:700">No aplican este mes (${om.length})</summary>${om.map(filaOmit).join("")}</details>`:"";
@@ -456,4 +458,6 @@ $("xPdf").onclick=async()=>{
   const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(140);doc.text(`Página ${i} de ${n}`,14,doc.internal.pageSize.getHeight()-7)}
   try{const dl=await claude.use("downloads");await dl.save({filename:`economia_${a}_${b}.pdf`,data:doc.output("blob")});$("xMsg").textContent="Descargado."}catch(e){$("xMsg").textContent="No se pudo descargar."}
 };
+
+["dProx","dMes","dPend"].forEach(id=>{const d=$(id);try{d.open=localStorage.getItem("plg_"+id)==="1"}catch(e){}d.addEventListener("toggle",()=>{try{localStorage.setItem("plg_"+id,d.open?"1":"0")}catch(e){}})});
 </script></body></html>
