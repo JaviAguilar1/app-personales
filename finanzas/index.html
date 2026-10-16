@@ -127,8 +127,6 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
         <button class="pri" id="nAgregar">Agregar</button><span class="msg" id="nMsg" role="status"></span>
       </div>
     </details>
-    <h3 style="margin-top:8px">Importar datos</h3>
-    <div class="row"><input type="file" id="impFile" accept=".json,application/json" aria-label="Archivo de datos"><button id="impBtn">Importar</button><span class="msg" id="impMsg" role="status"></span></div>
     <h3 style="margin-top:8px">Deudas a eliminar</h3>
     <div class="row">
       <input type="text" id="pNombre" placeholder="Ej: tarjeta, impuesto atrasado" aria-label="Nombre de la deuda" style="flex:1;min-width:160px">
@@ -393,15 +391,6 @@ $("nAgregar").onclick=async()=>{
 };
 $("pAgregar").onclick=async()=>{const n=$("pNombre").value.trim(),m=Number($("pMonto").value)||0;if(!n){$("pMsg").textContent="Poné un nombre.";return}if(!db)return;
   try{await db.collection("pendientes").add({nombre:n,monto:m,inicial:m,pasos:[],resuelto:false});$("pMsg").textContent="Agregado.";$("pNombre").value="";$("pMonto").value=""}catch(e){$("pMsg").textContent="No se guardó."}};
-
-$("impBtn").onclick=async()=>{
-  const f=$("impFile").files[0];if(!f){$("impMsg").textContent="Elegí el archivo primero.";return}
-  if(!db){$("impMsg").textContent="Entrá con tu cuenta primero.";return}
-  try{const j=JSON.parse(await f.text());if(j.app!=="economia"||!j.datos){$("impMsg").textContent="Ese archivo no es de Economía.";return}
-    let n=0;for(const[c,docs]of Object.entries(j.datos))for(const[id,d]of Object.entries(docs)){await db.doc(c+"/"+id).set(d);n++}
-    $("impMsg").textContent=`Listo: ${n} registros importados. Ya podés borrar el archivo.`;$("impFile").value=""}
-  catch(e){$("impMsg").textContent="No se pudo importar ("+(e&&e.code||e.message||"error")+")."}
-};
 function ajustes(a){$("ajustes").hidden=!a;$("ajAbrir").setAttribute("aria-expanded",String(a));if(a){renderFijos();$("ajustes").scrollIntoView({behavior:"smooth",block:"start"})}}
 $("ajAbrir").onclick=()=>ajustes($("ajustes").hidden);$("ajCerrar").onclick=()=>ajustes(false);
 $("mPrev").onclick=()=>{mes=addM(mes,-1);abierto=null;render()};
