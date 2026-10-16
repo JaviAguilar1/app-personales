@@ -444,7 +444,7 @@ $("xPdf").onclick=async()=>{
   doc.setFont("helvetica","bold");doc.setFontSize(17);doc.setTextColor(27,34,54);doc.text("Economía · movimientos",14,16);
   doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90,98,120);doc.text(`Período: ${fd(a)} al ${fd(b)}  ·  Solo lo marcado como cobrado o pagado`,14,22);
   tit("Resumen",31);
-  doc.autoTable({...st,startY:33,tableWidth:110,body:[["Cobros de fijos",fm(cob)],["Ingresos extra",fm(ext)],["Pagos de fijos",fm(-pf)],["Gastos variables",fm(-gv)],["Pagos de deudas",fm(-pd)],["Resultado del período",fm(neto)]],columnStyles:{1:{halign:"right"}},didParseCell:d=>{if(d.row.index===5)d.cell.styles.fontStyle="bold"}});
+  doc.autoTable({...st,startY:33,tableWidth:110,body:[["Ingresos fijos",fm(cob)],["Ingresos extra",fm(ext)],["Gastos fijos",fm(-pf)],["Gastos variables",fm(-gv)],["Pagos de deudas",fm(-pd)],["Saldo",fm(neto)]],columnStyles:{1:{halign:"right"}},didParseCell:d=>{if(d.row.index===5)d.cell.styles.fontStyle="bold"}});
   const by={};vrs.filter(v=>v.tipo!=="ingreso").forEach(v=>{const c=(v.cat||"Otros")+(v.sub?" · "+v.sub:"");by[c]=(by[c]||0)+v.monto});
   let y=doc.lastAutoTable.finalY+8;
   if(Object.keys(by).length){tit("Gastos variables por categoría",y);
