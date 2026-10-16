@@ -363,7 +363,7 @@ $("mAdd").onclick=async()=>{
 };
 $("mDesc").oninput=()=>$("mMsg").textContent="";
 
-function orden(h,f){if(!h)return 9999;const[a,b]=h.split(":").map(Number);let m=a*60+b;const dow=parse(f||$("fecha").value).getDay();if(dow>=2&&dow<=6){if(m>=1200)m-=1440}else if(m<300)m+=1440;return m}
+function orden(h,f){if(!h)return 9999;const[a,b]=h.split(":").map(Number);let m=a*60+b;const ff=f||$("fecha").value,dow=parse(ff).getDay();if(dow>=2&&dow<=6){const d=(typeof cur!=="undefined"&&cur&&cur.fecha===ff)?cur:dias[ff],ac=d&&d.acoste?d.acoste.split(":").map(Number):null,acm=ac?ac[0]*60+ac[1]:null;if(m>=1200&&!(acm!=null&&acm>=1200&&m<=acm))m-=1440}else if(m<300)m+=1440;return m}
 function cargar(){
   const f=$("fecha").value;cur=clone(dias[f]||blank(f));$("jornLbl").textContent=etiquetaJornada(f);
   $("tipo").value=cur.tipo||"Otro";const t=tipoDe(f);
@@ -564,7 +564,7 @@ $("dPdf").onclick=async()=>{
   const det=fs.filter(f=>dias[f]).map(f=>{const d=dias[f];
     const sue=[d.acoste||d.levante?`${d.acoste||"?"} a ${d.levante||"?"}`:null].concat(extrasDe(d).map(e=>`${e.nom}: ${e.desde} a ${e.hasta}`)).filter(Boolean);
     const com=[...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).map(c=>`${c.hora||"--:--"}  ${c.desc}${c.fuente==="social"?" (Social Lunch)":""}${c.picoteo?` [picoteo${c.motivo?": "+c.motivo.toLowerCase():""}]`:""}${c.hambre?` · hambre ${c.hambre}/5`:""}`);
-    const otros=[`Agua: ${d.agua||0} vasos`,...ejsDe(d).map(ejTxt),d.energia?`Energía ${d.energia}/5`:null,d.peso?`Peso ${String(d.peso).replace(".",",")} kg`:null].filter(Boolean);
+    const otros=[`Agua: ${d.agua||0} vaso${d.agua===1?"":"s"}`,...ejsDe(d).map(ejTxt),d.energia?`Energía ${d.energia}/5`:null,d.peso?`Peso ${String(d.peso).replace(".",",")} kg`:null].filter(Boolean);
     const t=sueTot(d);
     return[`${fC(f)}\n${d.tipo||""}`,(sue.join("\n")||"-")+`\nTotal: ${fmtM(t)}${d.calidad?` · calidad ${d.calidad}/5`:""}`,com.join("\n")||"-",otros.join("\n"),d.nota||""]});
   doc.autoTable({...st,startY:18,head:[["Jornada","Sueño","Comidas","Agua y otros","Nota"]],body:det,columnStyles:{0:{cellWidth:24},1:{cellWidth:50},2:{cellWidth:110},3:{cellWidth:36}},rowPageBreak:"avoid"});
