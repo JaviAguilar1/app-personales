@@ -83,7 +83,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .it .h{font-family:var(--f-data);color:var(--mute);font-size:.9rem}
 .it small{color:var(--mute)}
 .tag{font-size:.72rem;padding:1px 7px;border-radius:6px;margin-left:6px;white-space:nowrap}
-.tag.sl{background:var(--okbg);color:var(--ok)}.tag.pk{background:var(--warnbg);color:var(--warn)}.tag.sl2{background:var(--accbg);color:var(--accent)}
+.tag.sl{background:var(--okbg);color:var(--ok)}.tag.pk{background:var(--warnbg);color:var(--warn)}.tag.sl2{background:var(--accbg);color:var(--accent)}.tag.ej{background:var(--okbg);color:var(--ok)}
 .sugg{border:1px dashed var(--ok);border-radius:10px;padding:10px 12px;display:grid;gap:8px}
 .box{display:grid;gap:10px;border:1px solid var(--line);border-radius:10px;padding:12px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
@@ -152,6 +152,15 @@ summary{cursor:pointer;color:var(--mute);font-weight:700;font-size:.9rem}
     <div class="box" id="calidadBox" hidden><span>¿Cómo dormiste? (1 muy mal, 5 muy bien)</span><div class="row"><div class="chips" id="calidadQ"></div><button class="ghost" id="calidadSkip">Ahora no</button></div></div>
     <div class="box" id="energiaBox" hidden><span>¿Con cuánta energía terminás la jornada? (1 sin pilas, 5 muy bien)</span><div class="row"><div class="chips" id="energiaQ"></div><button class="ghost" id="energiaSkip">Ahora no</button></div></div>
     <div class="row"><span class="msg" id="aMsg" role="status"></span><button class="ghost" id="undo" hidden>Deshacer</button></div>
+    <div class="box" id="ejBox" hidden>
+      <div><div class="lbl">Qué hiciste</div><div class="chips" id="ejTipos"></div></div>
+      <div class="row">
+        <div id="ejOtroW" hidden style="flex:1;min-width:160px"><div class="lbl">Cuál</div><input type="text" id="ejOtro" style="width:100%;box-sizing:border-box" placeholder="Ej: natación"></div>
+        <div><div class="lbl">Minutos (opcional)</div><input type="number" id="ejMin" min="1" max="600" step="5" style="width:7em"></div>
+        <div><div class="lbl">Hora</div><input type="time" id="ejHora"></div>
+      </div>
+      <div class="row"><button class="pri" id="ejOk">Guardar</button><button class="ghost" id="ejCancel">Cancelar</button><span class="msg" id="ejMsg" role="status"></span></div>
+    </div>
     <div class="box" id="comiBox" hidden>
       <div class="row"><button id="kComida" aria-pressed="false">Comida</button><button id="kPico" aria-pressed="false">Picoteo</button></div>
       <div class="row">
@@ -214,8 +223,7 @@ summary{cursor:pointer;color:var(--mute);font-weight:700;font-size:.9rem}
         </div>
         <div class="row">
           <div><div class="lbl">Agua (vasos)</div><div class="row"><button id="aMenos" aria-label="Un vaso menos">−</button><span id="agua" style="font-family:var(--f-data)">0</span><button id="aMas" aria-label="Un vaso más">+</button></div></div>
-          <label class="chk"><input type="checkbox" id="camina">Caminata</label>
-          <label class="chk"><input type="checkbox" id="fuerza">Fuerza</label>
+          <div><div class="lbl">Ejercicio</div><button id="addEj">+ Ejercicio</button></div>
         </div>
         <div class="row">
           <div><div class="lbl">Energía</div><div class="chips" id="energia"></div></div>
@@ -242,11 +250,13 @@ const hhmm=d=>d.toTimeString().slice(0,5);
 const DN=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
 const TIPOS=["Club + NOC","Solo club","Solo NOC","Jornada club","Libre","Otro"];
 const MOTIVOS=["Hambre","Cansancio","Ansiedad","Aburrimiento","Social"];
-const FASES=[["sueño","Dormir 7 h o más","Jornadas con 7 h o más (contando siestas)"],["comidas","Sin picoteos de madrugada","Jornadas sin picoteos entre 00 y 06"],["movimiento","Moverme todos los días","Jornadas con caminata o fuerza"]];
+const FASES=[["sueño","Dormir 7 h o más","Jornadas con 7 h o más (contando siestas)"],["comidas","Sin picoteos de madrugada","Jornadas sin picoteos entre 00 y 06"],["movimiento","Moverme todos los días","Jornadas con ejercicio"]];
 const mins=(a,b)=>{if(!a||!b)return null;const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);return((h2*60+m2)-(h1*60+m1)+1440)%1440};
 const extrasDe=d=>{const ex=[...(d.extras||[])].sort((a,b)=>(mins(d.levante||a.desde,a.desde)??0)-(mins(d.levante||b.desde,b.desde)??0));let prev=d.levante;return ex.map(e=>{const g=prev?mins(prev,e.desde):null;prev=e.hasta;return{...e,m:mins(e.desde,e.hasta),nom:g!=null&&g<=90?"Volví a dormir":"Siesta"}})};
 const sueTot=d=>{const a=mins(d.acoste,d.levante),ex=(d.extras||[]).map(e=>mins(e.desde,e.hasta)).filter(v=>v!=null);if(a==null&&!ex.length)return null;return(a||0)+ex.reduce((x,y)=>x+y,0)};
 const sueDet=d=>{const ex=extrasDe(d);if(!ex.length)return fmtM(sueTot(d));return `${fmtM(sueTot(d))} (${[mins(d.acoste,d.levante)].filter(v=>v!=null).concat(ex.map(e=>e.m)).map(fmtM).join(" + ")})`};
+const ejsDe=d=>{const o=[...(d.ejercicios||[])];if(d.camina&&!o.some(e=>e.tipo==="Caminata"))o.push({id:"_cam",tipo:"Caminata"});if(d.fuerza&&!o.some(e=>e.tipo==="Entrenar"))o.push({id:"_fue",tipo:"Entrenar"});return o};
+const ejTxt=e=>`${e.tipo}${e.min?` · ${e.min} min`:""}`;
 const fmtM=m=>m==null?"—":`${Math.floor(m/60)} h ${String(m%60).padStart(2,"0")}`;
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const madrugada=h=>h&&Number(h.slice(0,2))<6;
@@ -273,10 +283,10 @@ function cumple(f,fase){
   const d=dias[f];if(!d)return null;
   if(fase[0]==="sueño"){const m=sueTot(d);return m==null?null:m>=420}
   if(fase[0]==="comidas"){if(!(d.comidas||[]).length)return null;return!(d.comidas||[]).some(c=>c.picoteo&&madrugada(c.hora))}
-  return!!(d.camina||d.fuerza);
+  return ejsDe(d).length>0;
 }
 
-function blank(f){return{fecha:f,tipo:tipoDe(f)[0],acoste:"",levante:"",extras:[],comidas:[],agua:0,camina:false,fuerza:false,energia:null,peso:null,nota:""}}
+function blank(f){return{fecha:f,tipo:tipoDe(f)[0],acoste:"",levante:"",extras:[],comidas:[],agua:0,ejercicios:[],energia:null,peso:null,nota:""}}
 const clone=o=>JSON.parse(JSON.stringify(o));
 
 function renderFoco(){
@@ -309,7 +319,7 @@ function renderAhora(){
   else if(!d.acoste&&p&&p.acoste&&!p.levante){txt=`Te acostaste a las ${p.acoste}. Cuando te levantes, marcalo.`;btns.push(["Me levanté","lev",pf])}
   else if(!d.acoste&&t[1]){const falta=mins(hhmm(now),t[1]);txt=falta<=180?`Tu bloque de sueño empieza a las ${t[1]}${falta>0?` (en ${fmtM(falta)})`:""}.`:`Objetivo de sueño hoy: ${t[1]} a ${t[2]}.`;btns.push(["Me voy a dormir","dor",f])}
   else txt=d.levante?`Dormiste ${fmtM(sueTot(d))} al cierre de esta jornada.`:"¿Qué estás haciendo?";
-  btns.push(["Comí algo","comi",f]);{const mn=menu[addDays(f,-1)];if(mn&&!d.socialNo&&!(d.comidas||[]).some(m=>m.fuente==="social"))btns.push([`Cené: ${mn.plato}`,"cena",f])}btns.push([`+1 vaso de agua (${d.agua||0})`,"agua",f]);btns.push([d.camina?"Caminata ✓":"Caminata","cam",f,!!d.camina]);btns.push([d.fuerza?"Fuerza ✓":"Fuerza","fue",f,!!d.fuerza]);
+  btns.push(["Comí algo","comi",f]);{const mn=menu[addDays(f,-1)];if(mn&&!d.socialNo&&!(d.comidas||[]).some(m=>m.fuente==="social"))btns.push([`Cené: ${mn.plato}`,"cena",f])}btns.push([`+1 vaso de agua (${d.agua||0})`,"agua",f]);btns.push([ejsDe(d).length?`Ejercicio (${ejsDe(d).length})`:"Ejercicio","ej",f]);
   $("t-ahora").textContent=txt;
   $("pesoBox").hidden=!(parse(f).getDay()===Number(cfg.diaPeso)&&!d.peso);
   const lock=Date.now()-bloqueo<3000;
@@ -320,7 +330,7 @@ function renderAhora(){
 async function accion(k,f){
   if(k==="comi"){abrirComi();return}
   if($("fecha").value!==f)ir(f);
-  if(k==="cam"||k==="fue"){const c=k==="cam"?"camina":"fuerza";cur[c]=!cur[c];await guardar("Guardado.",true);$("aMsg").textContent=`${k==="cam"?"Caminata":"Fuerza"} ${cur[c]?"anotada":"desmarcada"} en esta jornada.`;return}
+  if(k==="ej"){abrirEj(false);return}
   if(k==="cena"){const mn=menu[addDays(f,-1)];if(!mn)return;cur.comidas.push({id:"m"+Date.now(),hora:hhmm(new Date()),desc:mn.plato,picoteo:false,hambre:null,motivo:"",fuente:"social"});await guardar("Cena registrada.",true);$("aMsg").textContent="Cena anotada.";return}
   const antes={acoste:cur.acoste,levante:cur.levante,agua:cur.agua||0};
   if(k==="dor")cur.acoste=hhmm(new Date());
@@ -359,7 +369,7 @@ function cargar(){
   $("tipo").value=cur.tipo||"Otro";const t=tipoDe(f);
   $("objetivo").textContent=t[1]?`Objetivo de sueño: ${t[1]} a ${t[2]}`:"";
   $("acoste").value=cur.acoste||"";$("levante").value=cur.levante||"";pintaDormi();$("sueForm").hidden=true;
-  agua=cur.agua||0;$("agua").textContent=agua;$("camina").checked=!!cur.camina;$("fuerza").checked=!!cur.fuerza;
+  agua=cur.agua||0;$("agua").textContent=agua;
   energia=cur.energia??null;paint($("energia"),energia);calidadV=cur.calidad??null;paint($("calidad"),calidadV);$("peso").value=cur.peso??"";$("nota").value=cur.nota||"";
   pintarTl();
 }
@@ -368,11 +378,12 @@ function pintarTl(){
   if(cur.acoste){const[a,b]=cur.acoste.split(":").map(Number);let k=a*60+b;if(k<300)k+=1440;ev.push({hora:cur.acoste,k,id:"_acoste",html:`Me acosté${cur.levante?` · dormí ${fmtM(mins(cur.acoste,cur.levante))}`:""}<span class="tag sl2">sueño</span>`})}
   if(cur.levante)ev.push({hora:cur.levante,k:99999,id:"_levante",html:`Me levanté (fin del descanso)<span class="tag sl2">sueño</span>`});
   extrasDe(cur).forEach(e=>ev.push({hora:e.desde,k:cur.levante?99999+1+(mins(cur.levante,e.desde)||0):orden(e.desde,f),id:e.id,html:`${e.nom} ${esc(e.desde)}–${esc(e.hasta)} · ${fmtM(e.m)}<span class="tag sl2">sueño</span>`}));
+  ejsDe(cur).forEach(e=>ev.push({hora:e.hora||"",k:e.hora?orden(e.hora,f):99998,id:e.id,html:`${esc(ejTxt(e))}<span class="tag ej">ejercicio</span>`}));
   (cur.comidas||[]).forEach(m=>ev.push({hora:m.hora,k:orden(m.hora,f),id:m.id,html:`${esc(m.desc)}${m.fuente==="social"?'<span class="tag sl">Social Lunch</span>':""}${m.picoteo?'<span class="tag pk">picoteo</span>':""}${m.hambre||m.motivo?`<br><small>${m.hambre?"hambre "+m.hambre:""}${m.motivo?esc(m.motivo.toLowerCase()):""}</small>`:""}`}));
   ev.sort((a,b)=>a.k-b.k);
   $("tl").innerHTML=ev.map(e=>`<div class="it"><span class="h">${esc(e.hora||"--:--")}</span><span>${e.html}</span><button class="ghost" data-id="${e.id}" aria-label="Borrar">✕</button></div>`).join("");
   $("tlEmpty").hidden=ev.length>0;
-  $("tl").querySelectorAll("button[data-id]").forEach(b=>b.onclick=()=>{const id=b.dataset.id;if(id==="_acoste"){cur.acoste="";cur.levante=""}else if(id==="_levante")cur.levante="";else if((cur.extras||[]).some(e=>e.id===id))cur.extras=cur.extras.filter(e=>e.id!==id);else cur.comidas=cur.comidas.filter(m=>m.id!==id);guardar("Borrado.",true)});
+  $("tl").querySelectorAll("button[data-id]").forEach(b=>b.onclick=()=>{const id=b.dataset.id;if(id==="_acoste"){cur.acoste="";cur.levante=""}else if(id==="_levante")cur.levante="";else if(id==="_cam")cur.camina=false;else if(id==="_fue")cur.fuerza=false;else if((cur.ejercicios||[]).some(e=>e.id===id))cur.ejercicios=cur.ejercicios.filter(e=>e.id!==id);else if((cur.extras||[]).some(e=>e.id===id))cur.extras=cur.extras.filter(e=>e.id!==id);else cur.comidas=cur.comidas.filter(m=>m.id!==id);guardar("Borrado.",true)});
   const mn=menu[addDays(f,-1)],ya=(cur.comidas||[]).some(m=>m.fuente==="social");
   if(mn&&!ya&&!cur.socialNo){
     $("sugg").innerHTML=`<div class="sugg"><span>Cena pedida en Social Lunch: <b>${esc(mn.plato)}</b></span><div class="row"><input type="time" id="sHora" value="02:00" aria-label="Hora de la cena"><button id="sSi">La comí</button><button class="ghost" id="sNo">No la comí</button></div></div>`;
@@ -387,7 +398,7 @@ $("sCancel").onclick=()=>{$("sueForm").hidden=true};
 $("sOk").onclick=()=>{const a=$("sDesde").value,b=$("sHasta").value;if(!a||!b||a===b){$("msg").textContent="Poné desde y hasta.";return}leerForm();cur.extras=[...(cur.extras||[]),{id:"s"+Date.now(),desde:a,hasta:b}];guardar("Sueño agregado.",true)};
 $("aMas").onclick=()=>{agua++;$("agua").textContent=agua;auto()};
 $("aMenos").onclick=()=>{agua=Math.max(0,agua-1);$("agua").textContent=agua;auto()};
-function leerForm(){cur.tipo=$("tipo").value;cur.acoste=$("acoste").value;cur.levante=$("levante").value;cur.agua=agua;cur.camina=$("camina").checked;cur.fuerza=$("fuerza").checked;cur.energia=energia;cur.calidad=calidadV;const p=$("peso").value;cur.peso=p===""?null:Number(p);cur.nota=$("nota").value.trim()}
+function leerForm(){cur.tipo=$("tipo").value;cur.acoste=$("acoste").value;cur.levante=$("levante").value;cur.agua=agua;cur.energia=energia;cur.calidad=calidadV;const p=$("peso").value;cur.peso=p===""?null:Number(p);cur.nota=$("nota").value.trim()}
 async function guardar(ok,rapido){
   if(!rapido)leerForm();
   if(cur.peso!=null&&(isNaN(cur.peso)||cur.peso<30||cur.peso>250)){$("msg").textContent="El peso tiene que estar entre 30 y 250 kg.";return}
@@ -398,7 +409,24 @@ async function guardar(ok,rapido){
 let autoT=null;
 function auto(){clearTimeout(autoT);autoT=setTimeout(()=>{autoT=null;guardar("Guardado.")},700)}
 ["acoste","levante","peso","nota"].forEach(k=>$(k).addEventListener("input",auto));
-["camina","fuerza","tipo"].forEach(k=>$(k).addEventListener("change",auto));
+["tipo"].forEach(k=>$(k).addEventListener("change",auto));
+const EJ=["Caminata","Correr","Entrenar","Fútbol","Bici","Otra"];let ejT=null;
+chips($("ejTipos"),EJ,v=>{ejT=v;paint($("ejTipos"),ejT);$("ejOtroW").hidden=v!=="Otra";$("ejMsg").textContent=""});
+function abrirEj(enJornada){
+  const b=$("ejBox");
+  if(enJornada){$("comiAqui").appendChild(b);$("ejHora").value=""}
+  else{if($("fecha").value!==jornadaHoy())ir(jornadaHoy());$("ahoraBtns").after(b);$("ejHora").value=hhmm(new Date())}
+  ejT=null;paint($("ejTipos"),null);$("ejOtroW").hidden=true;$("ejOtro").value="";$("ejMin").value="";$("ejMsg").textContent="";b.hidden=false;
+}
+$("addEj").onclick=()=>abrirEj(true);
+$("ejCancel").onclick=()=>{$("ejBox").hidden=true};
+$("ejOk").onclick=async()=>{
+  if(!ejT){$("ejMsg").textContent="Elegí qué hiciste.";return}
+  const tipo=ejT==="Otra"?$("ejOtro").value.trim():ejT;if(!tipo){$("ejMsg").textContent="Escribí cuál fue.";return}
+  const m=$("ejMin").value===""?null:Math.round(Number($("ejMin").value));if(m!=null&&(isNaN(m)||m<1||m>600)){$("ejMsg").textContent="Minutos entre 1 y 600.";return}
+  leerForm();cur.ejercicios=[...(cur.ejercicios||[]),{id:"e"+Date.now(),tipo,min:m,hora:$("ejHora").value||""}];
+  $("ejBox").hidden=true;await guardar(`${tipo} anotado.`,true);$("aMsg").textContent=`${tipo} anotado en esta jornada.`;
+};
 $("tipo").addEventListener("change",()=>{const x=Object.values(cfg.semana).find(v=>v[0]===$("tipo").value);$("objetivo").textContent=x&&x[1]?`Objetivo de sueño: ${x[1]} a ${x[2]}`:""});
 $("editBtn").onclick=()=>{const p=$("jornBody"),a=p.hidden;p.hidden=!a;$("editBtn").setAttribute("aria-expanded",String(a));$("editBtn").textContent=a?"Cerrar edición":"Editar jornada"};
 $("tipo").onchange=()=>{cur.tipo=$("tipo").value};
@@ -414,7 +442,7 @@ function resumen(fs){
   const enBloque=rs.filter(r=>cumple(r.fecha,FASES[0])===true).length,conSue=rs.filter(r=>cumple(r.fecha,FASES[0])!=null).length;
   const regN=rs.filter(r=>r.acoste&&tipoDe(r.fecha)[1]).length,reg=rs.filter(r=>{const t=tipoDe(r.fecha);if(!r.acoste||!t[1])return false;const x=mins(t[1],r.acoste);return Math.min(x,1440-x)<=120}).length;
   const pesos=rs.filter(r=>r.peso).map(r=>[r.fecha,r.peso]);
-  return{rs,reg,regN,n:rs.length,sue:sue.length?Math.round(sue.reduce((a,b)=>a+b,0)/sue.length):null,enBloque,conSue,com:rs.length?com/rs.length:null,pk,pkN:pk.filter(m=>madrugada(m.hora)).length,agua:rs.length?rs.reduce((a,r)=>a+(r.agua||0),0)/rs.length:null,mov:rs.filter(r=>r.camina||r.fuerza).length,peso:pesos.length?pesos[pesos.length-1]:null};
+  return{rs,reg,regN,n:rs.length,sue:sue.length?Math.round(sue.reduce((a,b)=>a+b,0)/sue.length):null,enBloque,conSue,com:rs.length?com/rs.length:null,pk,pkN:pk.filter(m=>madrugada(m.hora)).length,agua:rs.length?rs.reduce((a,r)=>a+(r.agua||0),0)/rs.length:null,mov:rs.filter(r=>ejsDe(r).length).length,peso:pesos.length?pesos[pesos.length-1]:null};
 }
 const n1=v=>v==null?"—":v.toFixed(1).replace(".",",");
 function renderPeso(){
@@ -468,7 +496,7 @@ function textoResumen(fs){
   t+=`\nPromedios\n- Sueño: ${fmtM(r.sue)} (7 h o más en ${r.enBloque} de ${r.conSue} jornadas; se acostó cerca de su horario, ±2 h, en ${r.reg} de ${r.regN})\n- Comidas por jornada: ${r.com==null?"—":r.com.toFixed(1)}\n- Picoteos: ${r.pk.length} (${r.pkN} entre 00 y 06 h)\n- Agua: ${r.agua==null?"—":r.agua.toFixed(1)} vasos por día\n- Jornadas con movimiento: ${r.mov}\n${r.peso?`- Último peso: ${r.peso[1]} kg (${r.peso[0]})\n`:""}\nDetalle por jornada\n`;
   fs.forEach(f=>{const d=dias[f];if(!d)return;t+=`\n${DN[parse(f).getDay()]} ${f} · ${d.tipo} · durmió ${fmtM(sueTot(d))} (${d.acoste||"?"} a ${d.levante||"?"}${extrasDe(d).map(e=>`; ${e.nom.toLowerCase()} ${e.desde} a ${e.hasta}`).join("")})${d.calidad?", calidad "+d.calidad+"/5":""}\n`;
     [...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).forEach(c=>t+=`  ${c.hora||"--:--"} ${c.desc}${c.picoteo?" [picoteo"+(c.motivo?": "+c.motivo:"")+"]":""}${c.hambre?" (hambre "+c.hambre+")":""}\n`);
-    t+=`  Agua ${d.agua||0} vasos${d.camina?" · caminata":""}${d.fuerza?" · fuerza":""}${d.energia?" · energía "+d.energia:""}${d.nota?"\n  Nota: "+d.nota:""}\n`});
+    t+=`  Agua ${d.agua||0} vasos${ejsDe(d).map(e=>" · "+ejTxt(e).toLowerCase()).join("")}${d.energia?" · energía "+d.energia:""}${d.nota?"\n  Nota: "+d.nota:""}\n`});
   return t;
 }
 $("iaBtn").onclick=async()=>{
@@ -536,7 +564,7 @@ $("dPdf").onclick=async()=>{
   const det=fs.filter(f=>dias[f]).map(f=>{const d=dias[f];
     const sue=[d.acoste||d.levante?`${d.acoste||"?"} a ${d.levante||"?"}`:null].concat(extrasDe(d).map(e=>`${e.nom}: ${e.desde} a ${e.hasta}`)).filter(Boolean);
     const com=[...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).map(c=>`${c.hora||"--:--"}  ${c.desc}${c.fuente==="social"?" (Social Lunch)":""}${c.picoteo?` [picoteo${c.motivo?": "+c.motivo.toLowerCase():""}]`:""}${c.hambre?` · hambre ${c.hambre}/5`:""}`);
-    const otros=[`Agua: ${d.agua||0} vasos`,d.camina?"Caminata":null,d.fuerza?"Fuerza":null,d.energia?`Energía ${d.energia}/5`:null,d.peso?`Peso ${String(d.peso).replace(".",",")} kg`:null].filter(Boolean);
+    const otros=[`Agua: ${d.agua||0} vasos`,...ejsDe(d).map(ejTxt),d.energia?`Energía ${d.energia}/5`:null,d.peso?`Peso ${String(d.peso).replace(".",",")} kg`:null].filter(Boolean);
     const t=sueTot(d);
     return[`${fC(f)}\n${d.tipo||""}`,(sue.join("\n")||"-")+`\nTotal: ${fmtM(t)}${d.calidad?` · calidad ${d.calidad}/5`:""}`,com.join("\n")||"-",otros.join("\n"),d.nota||""]});
   doc.autoTable({...st,startY:18,head:[["Jornada","Sueño","Comidas","Agua y otros","Nota"]],body:det,columnStyles:{0:{cellWidth:24},1:{cellWidth:50},2:{cellWidth:110},3:{cellWidth:36}},rowPageBreak:"avoid"});
