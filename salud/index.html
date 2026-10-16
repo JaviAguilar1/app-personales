@@ -411,7 +411,7 @@ function resumen(fs){
   const rs=fs.map(f=>dias[f]).filter(Boolean),sue=rs.map(sueTot).filter(v=>v!=null);
   const pk=rs.flatMap(r=>(r.comidas||[]).filter(m=>m.picoteo)),com=rs.reduce((a,r)=>a+(r.comidas||[]).filter(m=>!m.picoteo).length,0);
   const enBloque=rs.filter(r=>cumple(r.fecha,FASES[0])===true).length,conSue=rs.filter(r=>cumple(r.fecha,FASES[0])!=null).length;
-  const regN=rs.filter(r=>r.acoste&&tipoDe(r.fecha)[1]).length,reg=rs.filter(r=>{const t=tipoDe(r.fecha);if(!r.acoste||!t[1])return false;const x=mins(t[1],r.acoste);return Math.min(x,1440-x)<=60}).length;
+  const regN=rs.filter(r=>r.acoste&&tipoDe(r.fecha)[1]).length,reg=rs.filter(r=>{const t=tipoDe(r.fecha);if(!r.acoste||!t[1])return false;const x=mins(t[1],r.acoste);return Math.min(x,1440-x)<=120}).length;
   const pesos=rs.filter(r=>r.peso).map(r=>[r.fecha,r.peso]);
   return{rs,reg,regN,n:rs.length,sue:sue.length?Math.round(sue.reduce((a,b)=>a+b,0)/sue.length):null,enBloque,conSue,com:rs.length?com/rs.length:null,pk,pkN:pk.filter(m=>madrugada(m.hora)).length,agua:rs.length?rs.reduce((a,r)=>a+(r.agua||0),0)/rs.length:null,mov:rs.filter(r=>r.camina||r.fuerza).length,peso:pesos.length?pesos[pesos.length-1]:null};
 }
@@ -449,7 +449,7 @@ function patrones(){
   if(cortos.length&&largos.length){const pc=cortos.reduce((a,d)=>a+(d.comidas||[]).filter(c=>c.picoteo).length,0)/cortos.length,pl=largos.reduce((a,d)=>a+(d.comidas||[]).filter(c=>c.picoteo).length,0)/largos.length;
     if(pc>pl)out.push(`Los días que dormiste menos de 6 h picaste ${n1(pc)} veces en promedio, contra ${n1(pl)} los días que dormiste más.`)}
   if(r.conSue&&r.enBloque<r.conSue){out.push(`Dormiste 7 h o más en ${r.enBloque} de ${r.conSue} jornadas.`);sug.push("Acostarme apenas llego a casa, sin pantallas antes, y si no llego a 7 h sumar una siesta")}
-  if(r.regN&&r.reg<r.regN)out.push(`Te acostaste cerca de tu horario (±1 h) en ${r.reg} de ${r.regN} jornadas.`);
+  if(r.regN&&r.reg<r.regN)out.push(`Te acostaste cerca de tu horario (±2 h) en ${r.reg} de ${r.regN} jornadas.`);
   if(r.agua!=null&&r.agua<5)sug.push("Dejar una botella de agua en el escritorio del NOC");
   if(!sug.length)sug.push("Repetir lo que funcionó esta semana");
   $("patrones").innerHTML=out.length?out.map(t=>`<div class="pat">${esc(t)}</div>`).join(""):`<p class="empty">Con algunos días más de registro, acá van a aparecer tus patrones.</p>`;
@@ -464,7 +464,7 @@ function textoResumen(fs){
   const r=resumen(fs);
   let t=`Período: ${fs[0]} a ${fs[fs.length-1]} (${r.n} jornadas registradas)\nRutina: turno noche en NOC (23 a 07) y mañanas en club.\nSemana tipo:\n`;
   [1,2,3,4,5,6,0].forEach(i=>t+=`- ${DN[i]}: ${cfg.semana[i][0]}, sueño objetivo ${cfg.semana[i][1]} a ${cfg.semana[i][2]}\n`);
-  t+=`\nPromedios\n- Sueño: ${fmtM(r.sue)} (7 h o más en ${r.enBloque} de ${r.conSue} jornadas; se acostó cerca de su horario, ±1 h, en ${r.reg} de ${r.regN})\n- Comidas por jornada: ${r.com==null?"—":r.com.toFixed(1)}\n- Picoteos: ${r.pk.length} (${r.pkN} entre 00 y 06 h)\n- Agua: ${r.agua==null?"—":r.agua.toFixed(1)} vasos por día\n- Jornadas con movimiento: ${r.mov}\n${r.peso?`- Último peso: ${r.peso[1]} kg (${r.peso[0]})\n`:""}\nDetalle por jornada\n`;
+  t+=`\nPromedios\n- Sueño: ${fmtM(r.sue)} (7 h o más en ${r.enBloque} de ${r.conSue} jornadas; se acostó cerca de su horario, ±2 h, en ${r.reg} de ${r.regN})\n- Comidas por jornada: ${r.com==null?"—":r.com.toFixed(1)}\n- Picoteos: ${r.pk.length} (${r.pkN} entre 00 y 06 h)\n- Agua: ${r.agua==null?"—":r.agua.toFixed(1)} vasos por día\n- Jornadas con movimiento: ${r.mov}\n${r.peso?`- Último peso: ${r.peso[1]} kg (${r.peso[0]})\n`:""}\nDetalle por jornada\n`;
   fs.forEach(f=>{const d=dias[f];if(!d)return;t+=`\n${DN[parse(f).getDay()]} ${f} · ${d.tipo} · durmió ${fmtM(sueTot(d))} (${d.acoste||"?"} a ${d.levante||"?"}${extrasDe(d).map(e=>`; ${e.nom.toLowerCase()} ${e.desde} a ${e.hasta}`).join("")})${d.calidad?", calidad "+d.calidad+"/5":""}\n`;
     [...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).forEach(c=>t+=`  ${c.hora||"--:--"} ${c.desc}${c.picoteo?" [picoteo"+(c.motivo?": "+c.motivo:"")+"]":""}${c.hambre?" (hambre "+c.hambre+")":""}\n`);
     t+=`  Agua ${d.agua||0} vasos${d.camina?" · caminata":""}${d.fuerza?" · fuerza":""}${d.energia?" · energía "+d.energia:""}${d.nota?"\n  Nota: "+d.nota:""}\n`});
@@ -530,7 +530,7 @@ $("dPdf").onclick=async()=>{
   const sem={};fs.forEach(f=>(sem[lunes(f)]=sem[lunes(f)]||[]).push(f));
   const body=Object.keys(sem).sort().map(k=>filaRes(`Semana del ${fC(k)}`,resumen(sem[k]))).filter(r=>r[1]!=="0");
   if(body.length>1)body.push(filaRes("Todo el período",resumen(fs)));
-  doc.autoTable({...st,startY:y+2,head:[["Semana","Jornadas","Sueño prom.","Con 7 h+","Cerca del horario (±1 h)","Comidas por jornada","Picoteos (de 00 a 06)","Agua (vasos/día)","Días con movimiento","Último peso"]],body,didParseCell:d=>{if(d.section==="body"&&d.row.raw[0]==="Todo el período")d.cell.styles.fontStyle="bold"}});
+  doc.autoTable({...st,startY:y+2,head:[["Semana","Jornadas","Sueño prom.","Con 7 h+","Cerca del horario (±2 h)","Comidas por jornada","Picoteos (de 00 a 06)","Agua (vasos/día)","Días con movimiento","Último peso"]],body,didParseCell:d=>{if(d.section==="body"&&d.row.raw[0]==="Todo el período")d.cell.styles.fontStyle="bold"}});
   doc.addPage();tit("Detalle por jornada",16);
   const det=fs.filter(f=>dias[f]).map(f=>{const d=dias[f];
     const sue=[d.acoste||d.levante?`${d.acoste||"?"} a ${d.levante||"?"}`:null].concat(extrasDe(d).map(e=>`${e.nom}: ${e.desde} a ${e.hasta}`)).filter(Boolean);
