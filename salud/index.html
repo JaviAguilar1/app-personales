@@ -255,7 +255,7 @@ const jornadaHoy=()=>jornadaDe(new Date());
 let bloqueo=0,undoT=null,energiaF=null,calidadF=null,calidadV=null;
 
 let col=null,dias={},menu={},menuMeta=null,cur=null;
-let cfg={semana:{1:["Solo club","14:00","21:30"],2:["Solo NOC","09:00","16:00"],3:["Club + NOC","14:00","21:30"],4:["Club + NOC","14:00","21:30"],5:["Club + NOC","14:00","21:30"],6:["Jornada club","18:00","06:30"],0:["Libre","22:00","05:30"]},identidad:"Soy alguien que cuida su descanso y lo que come",inicio:jornadaHoy(),revisiones:{},diaPeso:0};
+let cfg={semana:{1:["Solo club","14:00","21:30"],2:["Solo NOC","14:00","21:00"],3:["Club + NOC","14:00","21:30"],4:["Club + NOC","14:00","21:30"],5:["Club + NOC","14:00","21:30"],6:["Jornada club","18:00","06:30"],0:["Libre","22:00","05:30"]},identidad:"Soy alguien que cuida su descanso y lo que come",inicio:jornadaHoy(),revisiones:{},diaPeso:0};
 let energia=null,hambre=null,motivo=null,kind=null,agua=0;
 
 function chips(el,vals,on){vals.forEach(v=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=v;b.setAttribute("aria-pressed","false");b.onclick=()=>on(v);el.appendChild(b)})}
@@ -411,8 +411,9 @@ function resumen(fs){
   const rs=fs.map(f=>dias[f]).filter(Boolean),sue=rs.map(sueTot).filter(v=>v!=null);
   const pk=rs.flatMap(r=>(r.comidas||[]).filter(m=>m.picoteo)),com=rs.reduce((a,r)=>a+(r.comidas||[]).filter(m=>!m.picoteo).length,0);
   const enBloque=rs.filter(r=>cumple(r.fecha,FASES[0])===true).length,conSue=rs.filter(r=>cumple(r.fecha,FASES[0])!=null).length;
+  const regN=rs.filter(r=>r.acoste&&tipoDe(r.fecha)[1]).length,reg=rs.filter(r=>{const t=tipoDe(r.fecha);if(!r.acoste||!t[1])return false;const x=mins(t[1],r.acoste);return Math.min(x,1440-x)<=60}).length;
   const pesos=rs.filter(r=>r.peso).map(r=>[r.fecha,r.peso]);
-  return{rs,n:rs.length,sue:sue.length?Math.round(sue.reduce((a,b)=>a+b,0)/sue.length):null,enBloque,conSue,com:rs.length?com/rs.length:null,pk,pkN:pk.filter(m=>madrugada(m.hora)).length,agua:rs.length?rs.reduce((a,r)=>a+(r.agua||0),0)/rs.length:null,mov:rs.filter(r=>r.camina||r.fuerza).length,peso:pesos.length?pesos[pesos.length-1]:null};
+  return{rs,reg,regN,n:rs.length,sue:sue.length?Math.round(sue.reduce((a,b)=>a+b,0)/sue.length):null,enBloque,conSue,com:rs.length?com/rs.length:null,pk,pkN:pk.filter(m=>madrugada(m.hora)).length,agua:rs.length?rs.reduce((a,r)=>a+(r.agua||0),0)/rs.length:null,mov:rs.filter(r=>r.camina||r.fuerza).length,peso:pesos.length?pesos[pesos.length-1]:null};
 }
 const n1=v=>v==null?"—":v.toFixed(1).replace(".",",");
 function renderPeso(){
@@ -426,7 +427,7 @@ function renderSemana(){
   renderPeso();
   const fs=ultimos(7),r=resumen(fs);
   if(!r.n){$("statsS").innerHTML=$("statsC").innerHTML="";return}
-  $("statsS").innerHTML=`<div class="stat"><b>${fmtM(r.sue)}</b><span>sueño promedio</span></div><div class="stat"><b>${r.enBloque}/${r.conSue||0}</b><span>jornadas con 7 h+</span></div><div class="stat"><b>${(()=>{const c=r.rs.filter(x=>x.calidad);return c.length?n1(c.reduce((a,x)=>a+x.calidad,0)/c.length):"—"})()}</b><span>calidad del sueño (1 a 5)</span></div><div class="stat"><b>${n1(r.agua)}</b><span>vasos de agua por día</span></div>`;
+  $("statsS").innerHTML=`<div class="stat"><b>${fmtM(r.sue)}</b><span>sueño promedio</span></div><div class="stat"><b>${r.enBloque}/${r.conSue||0}</b><span>jornadas con 7 h+</span></div><div class="stat"><b>${r.reg}/${r.regN||0}</b><span>cerca de tu horario</span></div><div class="stat"><b>${(()=>{const c=r.rs.filter(x=>x.calidad);return c.length?n1(c.reduce((a,x)=>a+x.calidad,0)/c.length):"—"})()}</b><span>calidad del sueño (1 a 5)</span></div><div class="stat"><b>${n1(r.agua)}</b><span>vasos de agua por día</span></div>`;
   $("statsC").innerHTML=`<div class="stat"><b>${n1(r.com)}</b><span>comidas por jornada</span></div><div class="stat"><b>${r.pk.length}</b><span>picoteos${r.pk.length?`, ${r.pkN} de madrugada`:""}</span></div><div class="stat"><b>${r.mov}/${r.n}</b><span>jornadas con movimiento</span></div>`;
   $("semTabla").innerHTML="<table><thead><tr><th>Día</th><th>Sueño</th><th>Comidas</th><th>Picoteos</th><th>Agua</th><th>Energía</th></tr></thead><tbody>"+fs.map(f=>{const d=dias[f],dt=parse(f),lab=`${DN[dt.getDay()].slice(0,3)} ${dt.getDate()}`;
     if(!d)return`<tr><td>${lab}</td><td colspan="5" class="empty">sin registro</td></tr>`;
@@ -448,6 +449,7 @@ function patrones(){
   if(cortos.length&&largos.length){const pc=cortos.reduce((a,d)=>a+(d.comidas||[]).filter(c=>c.picoteo).length,0)/cortos.length,pl=largos.reduce((a,d)=>a+(d.comidas||[]).filter(c=>c.picoteo).length,0)/largos.length;
     if(pc>pl)out.push(`Los días que dormiste menos de 6 h picaste ${n1(pc)} veces en promedio, contra ${n1(pl)} los días que dormiste más.`)}
   if(r.conSue&&r.enBloque<r.conSue){out.push(`Dormiste 7 h o más en ${r.enBloque} de ${r.conSue} jornadas.`);sug.push("Acostarme apenas llego a casa, sin pantallas antes, y si no llego a 7 h sumar una siesta")}
+  if(r.regN&&r.reg<r.regN)out.push(`Te acostaste cerca de tu horario (±1 h) en ${r.reg} de ${r.regN} jornadas.`);
   if(r.agua!=null&&r.agua<5)sug.push("Dejar una botella de agua en el escritorio del NOC");
   if(!sug.length)sug.push("Repetir lo que funcionó esta semana");
   $("patrones").innerHTML=out.length?out.map(t=>`<div class="pat">${esc(t)}</div>`).join(""):`<p class="empty">Con algunos días más de registro, acá van a aparecer tus patrones.</p>`;
@@ -462,7 +464,7 @@ function textoResumen(fs){
   const r=resumen(fs);
   let t=`Período: ${fs[0]} a ${fs[fs.length-1]} (${r.n} jornadas registradas)\nRutina: turno noche en NOC (23 a 07) y mañanas en club.\nSemana tipo:\n`;
   [1,2,3,4,5,6,0].forEach(i=>t+=`- ${DN[i]}: ${cfg.semana[i][0]}, sueño objetivo ${cfg.semana[i][1]} a ${cfg.semana[i][2]}\n`);
-  t+=`\nPromedios\n- Sueño: ${fmtM(r.sue)} (7 h o más en ${r.enBloque} de ${r.conSue} jornadas)\n- Comidas por jornada: ${r.com==null?"—":r.com.toFixed(1)}\n- Picoteos: ${r.pk.length} (${r.pkN} entre 00 y 06 h)\n- Agua: ${r.agua==null?"—":r.agua.toFixed(1)} vasos por día\n- Jornadas con movimiento: ${r.mov}\n${r.peso?`- Último peso: ${r.peso[1]} kg (${r.peso[0]})\n`:""}\nDetalle por jornada\n`;
+  t+=`\nPromedios\n- Sueño: ${fmtM(r.sue)} (7 h o más en ${r.enBloque} de ${r.conSue} jornadas; se acostó cerca de su horario, ±1 h, en ${r.reg} de ${r.regN})\n- Comidas por jornada: ${r.com==null?"—":r.com.toFixed(1)}\n- Picoteos: ${r.pk.length} (${r.pkN} entre 00 y 06 h)\n- Agua: ${r.agua==null?"—":r.agua.toFixed(1)} vasos por día\n- Jornadas con movimiento: ${r.mov}\n${r.peso?`- Último peso: ${r.peso[1]} kg (${r.peso[0]})\n`:""}\nDetalle por jornada\n`;
   fs.forEach(f=>{const d=dias[f];if(!d)return;t+=`\n${DN[parse(f).getDay()]} ${f} · ${d.tipo} · durmió ${fmtM(sueTot(d))} (${d.acoste||"?"} a ${d.levante||"?"}${extrasDe(d).map(e=>`; ${e.nom.toLowerCase()} ${e.desde} a ${e.hasta}`).join("")})${d.calidad?", calidad "+d.calidad+"/5":""}\n`;
     [...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).forEach(c=>t+=`  ${c.hora||"--:--"} ${c.desc}${c.picoteo?" [picoteo"+(c.motivo?": "+c.motivo:"")+"]":""}${c.hambre?" (hambre "+c.hambre+")":""}\n`);
     t+=`  Agua ${d.agua||0} vasos${d.camina?" · caminata":""}${d.fuerza?" · fuerza":""}${d.energia?" · energía "+d.energia:""}${d.nota?"\n  Nota: "+d.nota:""}\n`});
@@ -532,7 +534,7 @@ setInterval(renderTodo,60000);
   col=db.collection("dias");
   let first=true;
   col.onSnapshot(s=>{const nd={};s.docs.forEach(x=>{const v=x.data();if(!v)return;
-      if(v.tipo==="config"){try{cfg.semana=JSON.parse(v.semana)}catch(_){}cfg.identidad=v.identidad??cfg.identidad;cfg.inicio=v.inicio||cfg.inicio;if(v.diaPeso!=null)cfg.diaPeso=Number(v.diaPeso);try{cfg.revisiones=JSON.parse(v.revisiones||"{}")}catch(_){}}
+      if(v.tipo==="config"){try{cfg.semana=JSON.parse(v.semana);Object.keys(cfg.semana).forEach(k=>{const x=cfg.semana[k];if(x[0]==="Solo NOC"&&x[1]==="09:00")cfg.semana[k]=["Solo NOC","14:00","21:00"]})}catch(_){}cfg.identidad=v.identidad??cfg.identidad;cfg.inicio=v.inicio||cfg.inicio;if(v.diaPeso!=null)cfg.diaPeso=Number(v.diaPeso);try{cfg.revisiones=JSON.parse(v.revisiones||"{}")}catch(_){}}
       else if(v.fecha){v.comidas=Array.isArray(v.comidas)?v.comidas.filter(Boolean):Object.values(v.comidas||{});nd[v.fecha]=v}});
     dias=nd;if(first){first=false;pintarAjustes();cargar();cargarRev()}renderTodo()},
     e=>{$("msg").textContent="No se pudieron leer tus registros ("+(e&&e.code||"error")+")."});
