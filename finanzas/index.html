@@ -150,6 +150,7 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
     <div class="ed" id="gBox" hidden style="display:grid;gap:10px;background:var(--card)">
       <div class="row"><input type="number" id="gMonto" placeholder="$ monto" aria-label="Monto" min="0" inputmode="decimal" style="font-size:1.3rem;width:8em"><input type="date" id="gFecha" aria-label="Fecha"></div>
       <div id="gCatRow"><div class="lbl">Categoría</div><div class="chips" id="gCat"></div></div>
+      <div id="gSubRow" hidden><div class="lbl">¿Qué servicio?</div><div class="chips" id="gSub"></div></div>
       <div id="gImpRow"><div class="lbl">¿Fue un impulso?</div><div class="chips" id="gImp"></div></div>
       <div id="gMotRow" hidden><div class="lbl">¿Por qué?</div><div class="chips" id="gMot"></div></div>
       <input type="text" id="gNota" placeholder="Detalle (opcional)" aria-label="Detalle">
@@ -192,6 +193,12 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
     <div class="tw" id="compTabla"></div>
     <div id="pend"><p class="empty">Sin deudas cargadas.</p></div>
   </section>
+
+  <section class="card" aria-labelledby="t-exp">
+    <h2 id="t-exp">Exportar</h2>
+    <div class="row"><label class="ey">Desde <input type="date" id="xDesde"></label><label class="ey">Hasta <input type="date" id="xHasta"></label></div>
+    <div class="row"><button class="pri" id="xPdf">Descargar PDF</button><span class="msg" id="xMsg" role="status"></span></div>
+  </section>
 </div>
 
 <script>
@@ -204,8 +211,8 @@ const difM=(a,b)=>{const[y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").ma
 const diasDe=m=>{const[y,mm]=m.split("-").map(Number);return new Date(y,mm,0).getDate()};
 const fmt=v=>(v<0?"−":"")+"$ "+Math.abs(Math.round(v)).toLocaleString("es-AR");
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let db=null,F={},M={},P={},V={},A={},abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gImp=null,gMot=null;
-const CATS=["Super y comida","Delivery","Transporte","Salidas","Casa","Salud","Hijos","Ropa","Otros"],MOTS=["Cansancio","Ansiedad","Aburrimiento","Social","Antojo"];
+let db=null,F={},M={},P={},V={},A={},abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null;
+const CATS=["Super y comida","Delivery","Transporte","Salidas","Servicios","Casa","Salud","Hijos","Ropa","Otros"],SERVS=["Luz","Gas","Agua","Internet","Celular","Cable / streaming","Otro"],MOTS=["Cansancio","Ansiedad","Aburrimiento","Social","Antojo"];
 
 function aplica(f,m){if(f.activo===false)return false;if(!f.cuotas)return true;const i=difM(f.cuotas.desde,m);return i>=0&&i<f.cuotas.total}
 function diaReal(f,m){return Math.min(f.dia||1,diasDe(m))}
@@ -261,13 +268,13 @@ function renderVars(vs,vG){
   $("varTot").textContent=g.length?`${fmt(vG)}${imp.length?` · ${imp.length} por impulso`:""}`:"";
   const by={};g.forEach(([,v])=>by[v.cat||"Otros"]=(by[v.cat||"Otros"]||0)+v.monto);
   const mx=Math.max(1,...Object.values(by));
-  $("varCats").innerHTML=g.length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([c,t])=>`<div class="cat"><span>${esc(c)}</span><div class="bar"><i style="width:${Math.round(t/mx*100)}%"></i></div><span style="font-family:var(--f-data)">${fmt(t)}</span></div>`).join(""):'<p class="empty">Todavía no cargaste gastos variables este mes. Tocá "+ Gasto" arriba.</p>';
-  $("varList").innerHTML=vs.sort((a,b)=>a[1].fecha<b[1].fecha?1:-1).map(([id,v])=>`<div class="it"><span>${esc(v.tipo==="ingreso"?"Ingreso extra":v.cat)}${v.impulso?'<span class="tag" style="background:var(--warnbg);color:var(--warn)">impulso</span>':""}<small>${v.fecha.slice(8)}/${v.fecha.slice(5,7)}${v.motivo?" · "+esc(v.motivo.toLowerCase()):""}${v.nota?" · "+esc(v.nota):""}</small></span><span class="n">${v.tipo==="ingreso"?"+":""}${fmt(v.monto)}</span><button class="ghost" data-dv="${id}" aria-label="Borrar">✕</button></div>`).join("")||'<p class="empty">Sin movimientos.</p>';
+  $("varCats").innerHTML=g.length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([c,t])=>`<details class="vcat"><summary class="cat" style="cursor:pointer"><span>${esc(c)}</span><div class="bar"><i style="width:${Math.round(t/mx*100)}%"></i></div><span style="font-family:var(--f-data)">${fmt(t)}</span></summary><div style="padding:4px 0 8px 10px">${g.filter(([,v])=>(v.cat||"Otros")===c).sort((a,b)=>a[1].fecha<b[1].fecha?1:-1).map(([,v])=>`<div class="it"><span>${esc(v.nota||v.sub||"(sin detalle)")}<small>${v.fecha.slice(8)}/${v.fecha.slice(5,7)}${v.sub&&v.nota?" · "+esc(v.sub):""}${v.impulso?" · impulso"+(v.motivo?" ("+esc(v.motivo.toLowerCase())+")":""):""}</small></span><span class="n">${fmt(v.monto)}</span></div>`).join("")}</div></details>`).join(""):'<p class="empty">Todavía no cargaste gastos variables este mes. Tocá "+ Gasto" arriba.</p>';
+  $("varList").innerHTML=vs.sort((a,b)=>a[1].fecha<b[1].fecha?1:-1).map(([id,v])=>`<div class="it"><span>${esc(v.nota||(v.tipo==="ingreso"?"Ingreso extra":v.cat+(v.sub?" · "+v.sub:"")))}${v.impulso?'<span class="tag" style="background:var(--warnbg);color:var(--warn)">impulso</span>':""}<small>${v.fecha.slice(8)}/${v.fecha.slice(5,7)}${v.nota?" · "+esc(v.tipo==="ingreso"?"Ingreso extra":v.cat+(v.sub?" · "+v.sub:"")):""}${v.motivo?" · "+esc(v.motivo.toLowerCase()):""}</small></span><span class="n">${v.tipo==="ingreso"?"+":""}${fmt(v.monto)}</span><button class="ghost" data-dv="${id}" aria-label="Borrar">✕</button></div>`).join("")||'<p class="empty">Sin movimientos.</p>';
   document.querySelectorAll("[data-dv]").forEach(b=>b.onclick=()=>{if(b.dataset.c){db&&db.doc("vars/"+b.dataset.dv).delete();return}b.dataset.c="1";b.textContent="¿Borrar?"});
 }
-function chipsEn(el,vals,get,set){el.innerHTML="";vals.forEach(v=>{const b=document.createElement("button");b.type="button";b.textContent=v;b.setAttribute("aria-pressed","false");b.onclick=()=>{set(get()===v?null:v);[...el.children].forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===get())));if(el.id==="gImp")$("gMotRow").hidden=gImp!=="Sí"};el.appendChild(b)})}
-chipsEn($("gCat"),CATS,()=>gCat,v=>gCat=v);chipsEn($("gImp"),["Sí","No"],()=>gImp,v=>gImp=v);chipsEn($("gMot"),MOTS,()=>gMot,v=>gMot=v);
-function abrirG(t){gTipo=t;gCat=null;gImp=null;gMot=null;["gCat","gImp","gMot"].forEach(k=>[...$(k).children].forEach(x=>x.setAttribute("aria-pressed","false")));
+function chipsEn(el,vals,get,set){el.innerHTML="";vals.forEach(v=>{const b=document.createElement("button");b.type="button";b.textContent=v;b.setAttribute("aria-pressed","false");b.onclick=()=>{set(get()===v?null:v);[...el.children].forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===get())));if(el.id==="gImp")$("gMotRow").hidden=gImp!=="Sí";if(el.id==="gCat"){$("gSubRow").hidden=gCat!=="Servicios";if(gCat!=="Servicios"){gSub=null;[...$("gSub").children].forEach(x=>x.setAttribute("aria-pressed","false"))}}};el.appendChild(b)})}
+chipsEn($("gCat"),CATS,()=>gCat,v=>gCat=v);chipsEn($("gSub"),SERVS,()=>gSub,v=>gSub=v);chipsEn($("gImp"),["Sí","No"],()=>gImp,v=>gImp=v);chipsEn($("gMot"),MOTS,()=>gMot,v=>gMot=v);
+function abrirG(t){gTipo=t;gCat=null;gSub=null;gImp=null;gMot=null;$("gSubRow").hidden=true;["gCat","gSub","gImp","gMot"].forEach(k=>[...$(k).children].forEach(x=>x.setAttribute("aria-pressed","false")));
   $("gCatRow").hidden=$("gImpRow").hidden=t==="ingreso";$("gMotRow").hidden=true;$("gMonto").value="";$("gNota").value="";$("gFecha").value=new Date().toLocaleDateString("en-CA");
   $("gGuardar").textContent=t==="ingreso"?"Guardar ingreso":"Guardar gasto";$("gBox").hidden=false;$("gMonto").focus()}
 $("gAbrir").onclick=()=>abrirG("gasto");$("iAbrir").onclick=()=>abrirG("ingreso");$("gCancel").onclick=()=>$("gBox").hidden=true;
@@ -275,8 +282,9 @@ $("gGuardar").onclick=async()=>{
   const v=Number($("gMonto").value),f=$("gFecha").value;
   if(!$("gMonto").value||!(v>0)){$("msg").textContent="Poné el monto.";return}
   if(gTipo==="gasto"&&!gCat){$("msg").textContent="Elegí una categoría.";return}
+  if(gTipo==="gasto"&&gCat==="Servicios"&&!gSub){$("msg").textContent="Elegí qué servicio.";return}
   if(!db){$("msg").textContent="Abrí la página con tu cuenta para guardar.";return}
-  const d={tipo:gTipo,monto:v,fecha:f,mes:f.slice(0,7),cat:gTipo==="gasto"?gCat:"",impulso:gImp==="Sí",motivo:gImp==="Sí"?(gMot||""):"",nota:$("gNota").value.trim()};
+  const d={tipo:gTipo,monto:v,fecha:f,mes:f.slice(0,7),cat:gTipo==="gasto"?gCat:"",sub:gTipo==="gasto"&&gCat==="Servicios"?gSub:"",impulso:gImp==="Sí",motivo:gImp==="Sí"?(gMot||""):"",nota:$("gNota").value.trim()};
   try{await db.collection("vars").add(d);$("gBox").hidden=true;$("msg").textContent=`${gTipo==="ingreso"?"Ingreso":"Gasto"} de ${fmt(v)} guardado.`}catch(e){$("msg").textContent="No se guardó ("+(e&&e.code||"error")+")."}
 };
 function fila(x){
@@ -407,4 +415,45 @@ render();
 </script>
 <div id="login" hidden style="position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;padding:24px"><div style="display:grid;gap:14px;max-width:320px;text-align:center"><h1 style="margin:0">Economía</h1><p style="margin:0;color:var(--mute)">Entrá con tu cuenta de Google para ver tus datos.</p><button class="pri" onclick="entrar()" style="font-size:1rem;padding:12px">Entrar con Google</button><span id="loginMsg" style="color:var(--mute);font-size:.9rem"></span></div></div>
 <p style="text-align:center;margin:0 0 24px"><button class="ghost" onclick="salir()" style="font-size:.85rem">Cerrar sesión</button></p>
-<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")</script></body></html>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")
+// ---- Exportar PDF ----
+{const h=new Date(),d1=new Date(h.getFullYear(),h.getMonth(),1);$("xDesde").value=d1.toLocaleDateString("en-CA");$("xHasta").value=h.toLocaleDateString("en-CA")}
+function cargarJs(u){return new Promise((ok,no)=>{const x=document.createElement("script");x.src=u;x.onload=ok;x.onerror=no;document.head.appendChild(x)})}
+const fd=f=>`${f.slice(8)}/${f.slice(5,7)}/${f.slice(0,4)}`,fm=v=>fmt(v).replace("−","-");
+$("xPdf").onclick=async()=>{
+  const a=$("xDesde").value,b=$("xHasta").value;if(!a||!b||a>b){$("xMsg").textContent="Revisá las fechas.";return}
+  const en=f=>f&&f>=a&&f<=b;
+  const fij=Object.entries(M).map(([k,m])=>({m,f:F[m.fijoId||k.slice(8)]})).filter(x=>x.f&&en(x.m.fecha));
+  const vrs=Object.values(V).filter(v=>en(v.fecha));
+  const dpag=[];Object.values(P).forEach(p=>(p.pagos||[]).forEach(q=>{if(en(q.fecha))dpag.push({p,q})}));
+  if(!fij.length&&!vrs.length&&!dpag.length){$("xMsg").textContent="No hay movimientos en ese período.";return}
+  $("xMsg").textContent="Armando el PDF…";
+  try{if(!window.jspdf)await cargarJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      if(!window.jspdf.jsPDF.API.autoTable)await cargarJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js")}
+  catch(e){$("xMsg").textContent="No se pudo cargar el generador de PDF. Revisá la conexión.";return}
+  const rows=[];
+  fij.forEach(({m,f})=>rows.push([m.fecha,f.tipo==="ingreso"?"Cobro fijo":"Pago fijo",f.nombre,"",f.tipo==="ingreso"?m.monto:-m.monto]));
+  vrs.forEach(v=>rows.push([v.fecha,v.tipo==="ingreso"?"Ingreso extra":"Gasto variable",v.tipo==="ingreso"?"Ingreso extra":(v.cat||"Otros")+(v.sub?" · "+v.sub:""),[v.nota,v.impulso?"impulso"+(v.motivo?" ("+v.motivo.toLowerCase()+")":""):""].filter(Boolean).join(" · "),v.tipo==="ingreso"?v.monto:-v.monto]));
+  dpag.forEach(({p,q})=>rows.push([q.fecha,"Pago de deuda",p.nombre,"",-q.monto]));
+  rows.sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0);
+  const sum=t=>rows.filter(r=>r[1]===t).reduce((s,r)=>s+r[4],0);
+  const cob=sum("Cobro fijo"),ext=sum("Ingreso extra"),pf=-sum("Pago fijo"),gv=-sum("Gasto variable"),pd=-sum("Pago de deuda"),neto=cob+ext-pf-gv-pd;
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"}),VE=[22,121,90];
+  const st={styles:{font:"helvetica",fontSize:8.5,cellPadding:1.6,textColor:[27,34,54],lineColor:[220,224,232],lineWidth:.1},headStyles:{fillColor:VE,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[245,248,246]},margin:{left:14,right:14}};
+  const tit=(t,y)=>{doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(27,34,54);doc.text(t,14,y)};
+  doc.setFont("helvetica","bold");doc.setFontSize(17);doc.setTextColor(27,34,54);doc.text("Economía · movimientos",14,16);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90,98,120);doc.text(`Período: ${fd(a)} al ${fd(b)}  ·  Solo lo marcado como cobrado o pagado`,14,22);
+  tit("Resumen",31);
+  doc.autoTable({...st,startY:33,tableWidth:110,body:[["Cobros de fijos",fm(cob)],["Ingresos extra",fm(ext)],["Pagos de fijos",fm(-pf)],["Gastos variables",fm(-gv)],["Pagos de deudas",fm(-pd)],["Resultado del período",fm(neto)]],columnStyles:{1:{halign:"right"}},didParseCell:d=>{if(d.row.index===5)d.cell.styles.fontStyle="bold"}});
+  const by={};vrs.filter(v=>v.tipo!=="ingreso").forEach(v=>{const c=(v.cat||"Otros")+(v.sub?" · "+v.sub:"");by[c]=(by[c]||0)+v.monto});
+  let y=doc.lastAutoTable.finalY+8;
+  if(Object.keys(by).length){tit("Gastos variables por categoría",y);
+    doc.autoTable({...st,startY:y+2,tableWidth:110,head:[["Categoría","Total","%"]],body:Object.entries(by).sort((p,q)=>q[1]-p[1]).map(([c,t])=>[c,fm(t),Math.round(t/gv*100)+"%"]),columnStyles:{1:{halign:"right"},2:{halign:"right"}}});y=doc.lastAutoTable.finalY+8}
+  const pend=Object.values(P).filter(p=>!p.resuelto&&p.monto>0);
+  if(pend.length){tit("Deudas (saldo actual)",y);doc.autoTable({...st,startY:y+2,tableWidth:110,head:[["Deuda","Saldo"]],body:pend.map(p=>[p.nombre,fm(p.monto)]),columnStyles:{1:{halign:"right"}}})}
+  doc.addPage();tit("Detalle de movimientos",16);
+  doc.autoTable({...st,startY:18,head:[["Fecha","Tipo","Concepto","Detalle","Monto"]],body:rows.map(r=>[fd(r[0]),r[1],r[2],r[3],fm(r[4])]),columnStyles:{0:{cellWidth:22},1:{cellWidth:28},4:{halign:"right",cellWidth:26}},didParseCell:d=>{if(d.section==="body"&&d.column.index===4)d.cell.styles.textColor=rows[d.row.index][4]<0?[180,60,50]:[22,121,90]}});
+  const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(140);doc.text(`Página ${i} de ${n}`,14,doc.internal.pageSize.getHeight()-7)}
+  try{const dl=await claude.use("downloads");await dl.save({filename:`economia_${a}_${b}.pdf`,data:doc.output("blob")});$("xMsg").textContent="Descargado."}catch(e){$("xMsg").textContent="No se pudo descargar."}
+};
+</script></body></html>
