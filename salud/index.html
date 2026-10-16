@@ -132,7 +132,7 @@ summary{cursor:pointer;color:var(--mute);font-weight:700;font-size:.9rem}
       <div><div class="lbl">Desde</div><input type="date" id="desde"></div>
       <div><div class="lbl">Hasta</div><input type="date" id="hasta"></div>
     </div>
-    <div class="row"><button id="dCsv">Descargar planilla (CSV)</button><button id="dTxt">Descargar resumen (texto)</button><span class="msg" id="dMsg" role="status"></span></div>
+    <div class="row"><button class="pri" id="dPdf">Descargar PDF para el nutricionista</button><span class="msg" id="dMsg" role="status"></span></div>
   </div>
   </section>
 
@@ -506,16 +506,42 @@ async function bajar(nombre,data){
   try{const r=await dl.save({filename:nombre,data});$("dMsg").textContent=(r==="saved"||r?.status==="saved")?"Descargado.":"Descarga cancelada."}
   catch(e){$("dMsg").textContent="No se pudo descargar ("+(e&&e.code||"error")+")."}
 }
-$("dCsv").onclick=()=>{
+function cargarJs(u){return new Promise((ok,no)=>{const x=document.createElement("script");x.src=u;x.onload=ok;x.onerror=no;document.head.appendChild(x)})}
+const fC=f=>{const d=parse(f);return `${DN[d.getDay()].slice(0,3)} ${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`};
+const lunes=f=>{const d=parse(f);d.setDate(d.getDate()-((d.getDay()+6)%7));return iso(d)};
+function filaRes(lbl,r){return[lbl,String(r.n),fmtM(r.sue),`${r.enBloque}/${r.conSue}`,`${r.reg}/${r.regN}`,r.com==null?"-":r.com.toFixed(1).replace(".",","),`${r.pk.length} (${r.pkN})`,r.agua==null?"-":r.agua.toFixed(1).replace(".",","),String(r.mov),r.peso?String(r.peso[1]).replace(".",",")+" kg":"-"]}
+$("dPdf").onclick=async()=>{
   const fs=rango();if(!fs){$("dMsg").textContent="Revisá las fechas: 'desde' tiene que ser anterior a 'hasta'.";return}
-  const rows=[["Jornada","Tipo de día","Se acostó","Se levantó","Horas dormidas","Calidad del sueño","Registro","Hora","Detalle","Picoteo","Hambre","Motivo","Agua (vasos)","Caminata","Fuerza","Energía","Peso","Nota"]];
-  fs.forEach(f=>{const d=dias[f];if(!d)return;const m=sueTot(d),base=[f,d.tipo,d.acoste,d.levante,m==null?"":(m/60).toFixed(1),d.calidad||""],tail=[d.agua||0,d.camina?"sí":"no",d.fuerza?"sí":"no",d.energia||"",d.peso||"",d.nota||""];
-    if(!(d.comidas||[]).length)rows.push([...base,"jornada","","","","","",...tail]);
-    extrasDe(d).forEach(e=>rows.push([...base,e.nom.toLowerCase(),e.desde,`${e.desde} a ${e.hasta} (${fmtM(e.m)})`,"","","",...tail]));
-    [...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).forEach(c=>rows.push([...base,c.fuente==="social"?"comida (Social Lunch)":"comida",c.hora,c.desc,c.picoteo?"sí":"no",c.hambre||"",c.motivo||"",...tail]))});
-  bajar(`bitacora_${fs[0]}_${fs[fs.length-1]}.csv`,"﻿"+rows.map(r=>r.map(csvq).join(",")).join("\n"));
+  if(!resumen(fs).n){$("dMsg").textContent="No hay jornadas registradas en ese período.";return}
+  $("dMsg").textContent="Armando el PDF…";
+  try{
+    if(!window.jspdf)await cargarJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    if(!window.jspdf.jsPDF.API.autoTable)await cargarJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+  }catch(e){$("dMsg").textContent="No se pudo cargar el generador de PDF. Revisá la conexión.";return}
+  const doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a4"}),W=doc.internal.pageSize.getWidth(),AZ=[46,91,216];
+  const tit=(t,y)=>{doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(27,34,54);doc.text(t,14,y)};
+  doc.setFont("helvetica","bold");doc.setFontSize(17);doc.setTextColor(27,34,54);doc.text("Registro de sueño y alimentación",14,16);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90,98,120);
+  doc.text(`Período: ${fC(fs[0])}/${fs[0].slice(0,4)} al ${fC(fs[fs.length-1])}/${fs[fs.length-1].slice(0,4)}  ·  Rutina: turno noche en NOC (23 a 07) y mañanas en club  ·  Objetivo de sueño: 7 h o más por jornada`,14,22);
+  const st={styles:{font:"helvetica",fontSize:8.5,cellPadding:1.6,textColor:[27,34,54],lineColor:[220,224,232],lineWidth:.1},headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[245,247,251]},margin:{left:14,right:14}};
+  tit("Semana tipo",31);
+  doc.autoTable({...st,startY:33,tableWidth:120,head:[["Día","Tipo de día","Sueño objetivo"]],body:[1,2,3,4,5,6,0].map(i=>[DN[i],cfg.semana[i][0],cfg.semana[i][1]?`${cfg.semana[i][1]} a ${cfg.semana[i][2]}`:"-"])});
+  let y=doc.lastAutoTable.finalY+8;tit("Resumen por semana",y);
+  const sem={};fs.forEach(f=>(sem[lunes(f)]=sem[lunes(f)]||[]).push(f));
+  const body=Object.keys(sem).sort().map(k=>filaRes(`Semana del ${fC(k)}`,resumen(sem[k]))).filter(r=>r[1]!=="0");
+  if(body.length>1)body.push(filaRes("Todo el período",resumen(fs)));
+  doc.autoTable({...st,startY:y+2,head:[["Semana","Jornadas","Sueño prom.","Con 7 h+","Cerca del horario (±1 h)","Comidas por jornada","Picoteos (de 00 a 06)","Agua (vasos/día)","Días con movimiento","Último peso"]],body,didParseCell:d=>{if(d.section==="body"&&d.row.raw[0]==="Todo el período")d.cell.styles.fontStyle="bold"}});
+  doc.addPage();tit("Detalle por jornada",16);
+  const det=fs.filter(f=>dias[f]).map(f=>{const d=dias[f];
+    const sue=[d.acoste||d.levante?`${d.acoste||"?"} a ${d.levante||"?"}`:null].concat(extrasDe(d).map(e=>`${e.nom}: ${e.desde} a ${e.hasta}`)).filter(Boolean);
+    const com=[...(d.comidas||[])].sort((a,b)=>orden(a.hora,f)-orden(b.hora,f)).map(c=>`${c.hora||"--:--"}  ${c.desc}${c.fuente==="social"?" (Social Lunch)":""}${c.picoteo?` [picoteo${c.motivo?": "+c.motivo.toLowerCase():""}]`:""}${c.hambre?` · hambre ${c.hambre}/5`:""}`);
+    const otros=[`Agua: ${d.agua||0} vasos`,d.camina?"Caminata":null,d.fuerza?"Fuerza":null,d.energia?`Energía ${d.energia}/5`:null,d.peso?`Peso ${String(d.peso).replace(".",",")} kg`:null].filter(Boolean);
+    const t=sueTot(d);
+    return[`${fC(f)}\n${d.tipo||""}`,(sue.join("\n")||"-")+`\nTotal: ${fmtM(t)}${d.calidad?` · calidad ${d.calidad}/5`:""}`,com.join("\n")||"-",otros.join("\n"),d.nota||""]});
+  doc.autoTable({...st,startY:18,head:[["Jornada","Sueño","Comidas","Agua y otros","Nota"]],body:det,columnStyles:{0:{cellWidth:24},1:{cellWidth:50},2:{cellWidth:110},3:{cellWidth:36}},rowPageBreak:"avoid"});
+  const n=doc.internal.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(140);doc.text(`Hambre y calidad: escala de 1 (poca / muy mal) a 5 (mucha / muy bien).  ·  Página ${i} de ${n}`,14,doc.internal.pageSize.getHeight()-7)}
+  await bajar(`registro_${fs[0]}_${fs[fs.length-1]}.pdf`,doc.output("blob"));
 };
-$("dTxt").onclick=()=>{const fs=rango();if(!fs){$("dMsg").textContent="Revisá las fechas: 'desde' tiene que ser anterior a 'hasta'.";return}bajar(`resumen_${fs[0]}_${fs[fs.length-1]}.txt`,"Registro de sueño y alimentación\n"+textoResumen(fs))};
 
 function ajustes(abrir){$("ajustes").hidden=!abrir;$("ajAbrir").setAttribute("aria-expanded",String(abrir));if(abrir){pintarAjustes();$("ajustes").scrollIntoView({behavior:"smooth",block:"start"})}}
 $("ajAbrir").onclick=()=>ajustes($("ajustes").hidden);$("ajCerrar").onclick=()=>ajustes(false);
