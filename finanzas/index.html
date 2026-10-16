@@ -70,6 +70,7 @@ h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mu
 .stat{background:var(--card);border-radius:10px;padding:8px 10px;min-width:0}
 .stat b{font-family:var(--f-data);font-weight:500;display:block;font-size:.95rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .stat span{font-size:.78rem;color:var(--mute)}
+.stat .ln{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.stat .ln b{display:inline;font-size:.9rem}.stat .ln.tot{border-top:1px solid var(--line);margin-top:3px;padding-top:3px}.stat .ln.tot b{font-weight:700}
 .bar{height:8px;border-radius:4px;background:var(--card);overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
 .it{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .it:last-child{border-bottom:0}
@@ -138,14 +139,18 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
   <section class="card hero" aria-labelledby="t-libre">
     <div><span class="ey" id="t-libre">Tenés disponible</span><div class="big" id="libre">—</div><span class="ey" id="hoyLbl"></span></div>
     <div class="stats">
-      <div class="stat"><b id="sIng">—</b><span id="sIngSub">cobrado</span></div>
-      <div class="stat"><b id="sPag">—</b><span>ya pagado</span></div>
-      <div class="stat"><b id="sFal">—</b><span>falta pagar</span></div>
-      <div class="stat"><b id="sVar">—</b><span>gastos variables</span></div>
+      <div class="stat"><span class="ey" style="font-weight:700">Entró</span><div class="ln"><span>Ingresos fijos</span><b id="hIF">—</b></div><div class="ln"><span>Ingresos extra</span><b id="hIE">—</b></div><div class="ln tot"><span>Total</span><b id="hIT">—</b></div></div>
+      <div class="stat"><span class="ey" style="font-weight:700">Salió</span><div class="ln"><span>Gastos fijos</span><b id="hGF">—</b></div><div class="ln"><span>Gastos variables</span><b id="hGV">—</b></div><div class="ln"><span>Pagos de deudas</span><b id="hPD">—</b></div><div class="ln tot"><span>Total</span><b id="hGT">—</b></div></div>
     </div>
-    <div class="bar" aria-hidden="true"><i id="barra" style="width:0"></i></div>
+    <div class="stat"><span class="ey" style="font-weight:700">Falta</span><div class="ln"><span>Cobrar</span><b id="hFC">—</b></div><div class="ln"><span>Pagar</span><b id="hFP">—</b></div>
+      <div class="bar" aria-hidden="true" style="margin-top:6px"><i id="barra" style="width:0"></i></div><span class="ey" id="barLbl"></span></div>
     <p class="ey" id="proy" style="margin:0"></p>
-    <div class="row"><button class="pri" id="gAbrir">+ Gasto</button><button id="iAbrir">+ Ingreso extra</button></div>
+    <div class="row"><button class="pri" id="gAbrir">+ Gasto</button><button id="iAbrir">+ Ingreso extra</button><button class="ghost" id="aAbrir">Ajustar saldo</button></div>
+    <div class="ed" id="aBox" hidden style="display:grid;gap:8px;background:var(--card)">
+      <span class="ey">¿Cuánto tenés en total ahora? Sumá Mercado Pago, la otra cuenta y el efectivo.</span>
+      <div class="row"><input type="number" id="aReal" placeholder="$ total real" aria-label="Total real" min="0" inputmode="decimal" style="font-size:1.2rem;width:9em"><button class="pri" id="aOk">Ajustar</button><button class="ghost" id="aCancel">Cancelar</button></div>
+      <span class="ey" id="aPrev"></span>
+    </div>
     <div class="ed" id="gBox" hidden style="display:grid;gap:10px;background:var(--card)">
       <div class="row"><input type="number" id="gMonto" placeholder="$ monto" aria-label="Monto" min="0" inputmode="decimal" style="font-size:1.3rem;width:8em"><input type="date" id="gFecha" aria-label="Fecha"></div>
       <div id="gCatRow"><div class="lbl">Categoría</div><div class="chips" id="gCat"></div></div>
@@ -205,7 +210,7 @@ const difM=(a,b)=>{const[y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").ma
 const diasDe=m=>{const[y,mm]=m.split("-").map(Number);return new Date(y,mm,0).getDate()};
 const fmt=v=>(v<0?"−":"")+"$ "+Math.abs(Math.round(v)).toLocaleString("es-AR");
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let db=null,F={},M={},P={},V={},A={},abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null;
+let dispHoy=0,db=null,F={},M={},P={},V={},A={},abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null;
 const CATS=["Super y comida","Delivery","Transporte","Salidas","Servicios","Casa","Salud","Hijos","Ropa","Otros"],SERVS=["Luz","Gas","Agua","Internet","Celular","Cable / streaming","Otro"],MOTS=["Cansancio","Ansiedad","Aburrimiento","Social","Antojo"];
 
 function aplica(f,m){if(f.activo===false)return false;if(!f.cuotas)return true;const i=difM(f.cuotas.desde,m);return i>=0&&i<f.cuotas.total}
@@ -226,13 +231,15 @@ function render(){
    const vH=Object.values(V).filter(v=>v.mes===mesHoy),vGH=vH.filter(v=>v.tipo!=="ingreso").reduce((a,v)=>a+v.monto,0),vIH=vH.filter(v=>v.tipo==="ingreso").reduce((a,v)=>a+v.monto,0);
    const prevI=inH.reduce((a,x)=>a+monto(x),0),cob=inH.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
    const tG=gaH.reduce((a,x)=>a+monto(x),0),pag=gaH.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
-   const disp=cob+vIH-pag-vGH,proy=prevI+vIH-tG-vGH;
+   const pd=Object.values(P).reduce((a,p)=>a+(p.pagos||[]).filter(q=>(q.fecha||"").slice(0,7)===mesHoy).reduce((s,q)=>s+q.monto,0),0);
+   const ent=cob+vIH,sal=pag+vGH+pd,disp=ent-sal,proy=prevI+vIH-tG-vGH-pd;dispHoy=disp;
    $("t-libre").textContent=disp<0?"Te faltan":"Tenés disponible";
    $("libre").textContent=fmt(Math.abs(disp));$("libre").classList.toggle("neg",disp<0);
    $("hoyLbl").textContent=`${MESES[hoy.getMonth()][0].toUpperCase()+MESES[hoy.getMonth()].slice(1)} · quedan ${diasDe(mesHoy)-hoy.getDate()} días`;
-   $("sIng").textContent=fmt(cob+vIH);$("sIngSub").textContent=`cobrado (de ${fmt(prevI+vIH)})`;
-   $("sPag").textContent=fmt(pag);$("sFal").textContent=fmt(tG-pag);$("sVar").textContent=fmt(vGH);
-   $("barra").style.width=(tG?Math.round(pag/tG*100):0)+"%";
+   $("hIF").textContent=fmt(cob);$("hIE").textContent=fmt(vIH);$("hIT").textContent=fmt(ent);
+   $("hGF").textContent=fmt(pag);$("hGV").textContent=fmt(vGH);$("hPD").textContent=fmt(pd);$("hGT").textContent=fmt(sal);
+   $("hFC").textContent=fmt(prevI-cob);$("hFP").textContent=fmt(tG-pag);
+   const pc=tG?Math.round(pag/tG*100):0;$("barra").style.width=pc+"%";$("barLbl").textContent=tG?`${pc}% de los gastos fijos pagados`:"";
    $("proy").textContent=iH.length||vH.length?`Si cobrás y pagás todo lo previsto: ${proy<0?"te faltan":"te quedan"} ${fmt(Math.abs(proy))}.`:"";}
   $("mesN").textContent=`${gas.filter(x=>x.mov).length+ing.filter(x=>x.mov).length}/${gas.length+ing.length} marcados`;
   $("lIng").innerHTML=ing.length?ing.map(fila).join(""):'<p class="empty">Sin ingresos este mes. Cargalos en la tuerquita.</p>';
@@ -441,4 +448,13 @@ $("xPdf").onclick=async()=>{
 };
 
 ["dMes","dPend"].forEach(id=>{const d=$(id);try{d.open=localStorage.getItem("plg_"+id)==="1"}catch(e){}d.addEventListener("toggle",()=>{try{localStorage.setItem("plg_"+id,d.open?"1":"0")}catch(e){}})});
+
+$("aAbrir").onclick=()=>{const b=$("aBox");b.hidden=!b.hidden;$("aReal").value="";$("aPrev").textContent=`La app calcula ${fmt(dispHoy)}.`};
+$("aCancel").onclick=()=>{$("aBox").hidden=true};
+$("aReal").oninput=()=>{const r=Number($("aReal").value);if($("aReal").value===""){$("aPrev").textContent=`La app calcula ${fmt(dispHoy)}.`;return}const d=r-dispHoy;$("aPrev").textContent=d===0?"Coincide, no hay nada que ajustar.":`Se va a cargar un ajuste de ${fmt(Math.abs(d))} como ${d>0?"ingreso":"gasto"}.`};
+$("aOk").onclick=async()=>{if($("aReal").value===""){$("aPrev").textContent="Poné cuánto tenés.";return}const r=Number($("aReal").value),d=Math.round(r-dispHoy);
+  if(!d){$("aBox").hidden=true;$("msg").textContent="Coincide, no hay nada que ajustar.";return}if(!db)return;
+  const f=new Date().toLocaleDateString("en-CA");
+  try{await db.collection("vars").add({tipo:d>0?"ingreso":"gasto",monto:Math.abs(d),fecha:f,mes:f.slice(0,7),cat:d>0?"":"Ajuste",sub:"",impulso:false,motivo:"",nota:"Ajuste de saldo",ajuste:true});
+    $("aBox").hidden=true;$("msg").textContent=`Ajuste de ${fmt(Math.abs(d))} cargado. Ahora el disponible es ${fmt(r)}.`}catch(e){$("msg").textContent="No se guardó."}};
 </script></body></html>
