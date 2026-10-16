@@ -173,11 +173,6 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
     <details id="varDet"><summary class="ey" style="cursor:pointer;font-weight:700">Ver todos los movimientos</summary><div id="varList" style="margin-top:8px"></div></details>
   </section>
 
-  <section class="card" id="proxCard" aria-labelledby="t-prox">
-    <details class="plg" id="dProx"><summary class="row sp"><h2 id="t-prox">Próximos 7 días</h2><span class="ey" id="proxN"></span></summary>
-    <div id="prox"></div></details>
-  </section>
-
   <section class="card" aria-labelledby="t-mes">
     <details class="plg" id="dMes"><summary class="row sp"><h2 id="t-mes">El mes</h2><span class="ey" id="mesN"></span></summary>
     <h3>Ingresos</h3><div id="lIng"></div>
@@ -243,11 +238,6 @@ function render(){
   $("lIng").innerHTML=ing.length?ing.map(fila).join(""):'<p class="empty">Sin ingresos este mes. Cargalos en la tuerquita.</p>';
   $("lGas").innerHTML=gas.length?gas.map(fila).join(""):'<p class="empty">Sin gastos fijos este mes. Cargalos en la tuerquita.</p>';
   const om=omitidos(mes);$("lOmit").innerHTML=om.length?`<details><summary class="ey" style="cursor:pointer;font-weight:700">No aplican este mes (${om.length})</summary>${om.map(filaOmit).join("")}</details>`:"";
-  // próximos 7 días (solo mes actual)
-  if(mes===mesHoy){const d=hoy.getDate(),px=gas.filter(x=>!x.mov&&x.dia<=d+7);
-    $("proxCard").hidden=false;$("proxN").textContent=px.length?`${px.length} por pagar`:"";
-    $("prox").innerHTML=px.length?px.map(fila).join(""):'<p class="empty">Nada vence en los próximos 7 días.</p>'}
-  else $("proxCard").hidden=true;
   document.querySelectorAll("[data-mark]").forEach(b=>b.onclick=()=>{abierto=abierto===b.dataset.mark?null:b.dataset.mark;render()});
   document.querySelectorAll("[data-ok]").forEach(b=>b.onclick=()=>confirmar(b.dataset.ok));
   document.querySelectorAll("[data-undo]").forEach(b=>b.onclick=()=>desmarcar(b.dataset.undo));
@@ -448,5 +438,5 @@ $("xPdf").onclick=async()=>{
   try{const dl=await claude.use("downloads");await dl.save({filename:`economia_${a}_${b}.pdf`,data:doc.output("blob")});$("xMsg").textContent="Descargado."}catch(e){$("xMsg").textContent="No se pudo descargar."}
 };
 
-["dProx","dMes","dPend"].forEach(id=>{const d=$(id);try{d.open=localStorage.getItem("plg_"+id)==="1"}catch(e){}d.addEventListener("toggle",()=>{try{localStorage.setItem("plg_"+id,d.open?"1":"0")}catch(e){}})});
+["dMes","dPend"].forEach(id=>{const d=$(id);try{d.open=localStorage.getItem("plg_"+id)==="1"}catch(e){}d.addEventListener("toggle",()=>{try{localStorage.setItem("plg_"+id,d.open?"1":"0")}catch(e){}})});
 </script></body></html>
