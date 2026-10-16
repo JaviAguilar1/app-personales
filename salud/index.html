@@ -147,6 +147,7 @@ summary{cursor:pointer;color:var(--mute);font-weight:700;font-size:.9rem}
   <section class="card" aria-labelledby="t-ahora">
     <span class="ey" id="ahoraEy"></span>
     <h2 id="t-ahora" class="ahora-t">Ahora</h2>
+    <div class="box" id="faltaBox" hidden><span id="faltaTxt"></span><div class="row"><button class="pri" id="faltaIr">Completar</button><button class="ghost" id="faltaOk">Ya está así</button></div></div>
     <div class="row" id="ahoraBtns"></div>
     <div class="box" id="pesoBox" hidden><span>Hoy toca pesarte: al levantarte, después del baño y antes de comer.</span><div class="row"><input type="number" id="pesoQ" min="30" max="250" step="0.1" placeholder="kg" aria-label="Peso en kg"><button class="pri" id="pesoQB">Guardar peso</button></div></div>
     <div class="box" id="calidadBox" hidden><span>¿Cómo dormiste? (1 muy mal, 5 muy bien)</span><div class="row"><div class="chips" id="calidadQ"></div><button class="ghost" id="calidadSkip">Ahora no</button></div></div>
@@ -311,7 +312,17 @@ $("energiaSkip").onclick=()=>{$("energiaBox").hidden=true};
 chips($("calidadQ"),[1,2,3,4,5],async v=>{$("calidadBox").hidden=true;if($("fecha").value!==calidadF)ir(calidadF);cur.calidad=v;await guardar("Calidad anotada.",true);$("aMsg").textContent=`Calidad del sueño: ${v}. Buen día.`});
 $("calidadSkip").onclick=()=>{$("calidadBox").hidden=true};
 chips($("calidad"),[1,2,3,4,5],v=>{calidadV=calidadV===v?null:v;paint($("calidad"),calidadV);auto()});
+function renderFalta(){
+  const y=addDays(jornadaHoy(),-1),d=dias[y];let ok=false;try{ok=localStorage.getItem("faltaOk_"+y)==="1"}catch(e){}
+  const fS=!d||sueTot(d)==null,fC=!d||!(d.comidas||[]).length;
+  if(ok||(!fS&&!fC)){$("faltaBox").hidden=true;return}
+  $("faltaTxt").textContent=`${DN[parse(y).getDay()]} ${y.slice(8)}/${y.slice(5,7)} quedó ${fS&&fC?"sin sueño ni comidas":fS?"sin sueño":"sin comidas"} cargadas.`;
+  $("faltaBox").hidden=false;
+  $("faltaIr").onclick=()=>{ir(y);if($("jornBody").hidden)$("editBtn").click();$("editBtn").scrollIntoView({behavior:"smooth",block:"start"})};
+  $("faltaOk").onclick=()=>{try{localStorage.setItem("faltaOk_"+y,"1")}catch(e){}$("faltaBox").hidden=true};
+}
 function renderAhora(){
+  try{renderFalta()}catch(e){}
   const f=jornadaHoy(),d=dias[f]||blank(f),pf=addDays(f,-1),p=dias[pf],t=tipoDe(f),now=new Date();
   $("ahoraEy").textContent=`Ahora · ${DN[now.getDay()].toLowerCase()} ${hhmm(now)} · jornada del ${DN[parse(f).getDay()].toLowerCase()} ${parse(f).getDate()}`;
   let txt,btns=[];
