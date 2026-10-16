@@ -2,7 +2,7 @@ name: Menú Social Lunch → Salud
 
 on:
   schedule:
-    - cron: "51 6 * * *"   # 03:51 hora Argentina
+    - cron: "0 2 * * *"   # 23:00 hora Argentina
   workflow_dispatch: {}
 
 permissions:
