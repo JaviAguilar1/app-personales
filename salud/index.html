@@ -309,17 +309,18 @@ function renderAhora(){
   else if(!d.acoste&&p&&p.acoste&&!p.levante){txt=`Te acostaste a las ${p.acoste}. Cuando te levantes, marcalo.`;btns.push(["Me levanté","lev",pf])}
   else if(!d.acoste&&t[1]){const falta=mins(hhmm(now),t[1]);txt=falta<=180?`Tu bloque de sueño empieza a las ${t[1]}${falta>0?` (en ${fmtM(falta)})`:""}.`:`Objetivo de sueño hoy: ${t[1]} a ${t[2]}.`;btns.push(["Me voy a dormir","dor",f])}
   else txt=d.levante?`Dormiste ${fmtM(sueTot(d))} al cierre de esta jornada.`:"¿Qué estás haciendo?";
-  btns.push(["Comí algo","comi",f]);{const mn=menu[addDays(f,-1)];if(mn&&!d.socialNo&&!(d.comidas||[]).some(m=>m.fuente==="social"))btns.push([`Cené: ${mn.plato}`,"cena",f])}btns.push([`+1 vaso de agua (${d.agua||0})`,"agua",f]);
+  btns.push(["Comí algo","comi",f]);{const mn=menu[addDays(f,-1)];if(mn&&!d.socialNo&&!(d.comidas||[]).some(m=>m.fuente==="social"))btns.push([`Cené: ${mn.plato}`,"cena",f])}btns.push([`+1 vaso de agua (${d.agua||0})`,"agua",f]);btns.push([d.camina?"Caminata ✓":"Caminata","cam",f,!!d.camina]);btns.push([d.fuerza?"Fuerza ✓":"Fuerza","fue",f,!!d.fuerza]);
   $("t-ahora").textContent=txt;
   $("pesoBox").hidden=!(parse(f).getDay()===Number(cfg.diaPeso)&&!d.peso);
   const lock=Date.now()-bloqueo<3000;
-  $("ahoraBtns").innerHTML=btns.map(([l,k,jf],i)=>`<button class="${i===0&&k!=="comi"?"pri":""}" data-a="${k}" data-f="${jf}"${lock&&(k==="dor"||k==="lev")?" disabled":""}>${esc(l)}</button>`).join("");
+  $("ahoraBtns").innerHTML=btns.map(([l,k,jf,on],i)=>`<button class="${i===0&&k!=="comi"?"pri":""}" data-a="${k}" data-f="${jf}"${on!=null?` aria-pressed="${on}"`:""}${lock&&(k==="dor"||k==="lev")?" disabled":""}>${esc(l)}</button>`).join("");
   $("ahoraBtns").querySelectorAll("button").forEach(b=>b.onclick=()=>accion(b.dataset.a,b.dataset.f));
   if(lock)setTimeout(renderAhora,3100);
 }
 async function accion(k,f){
   if(k==="comi"){abrirComi();return}
   if($("fecha").value!==f)ir(f);
+  if(k==="cam"||k==="fue"){const c=k==="cam"?"camina":"fuerza";cur[c]=!cur[c];await guardar("Guardado.",true);$("aMsg").textContent=`${k==="cam"?"Caminata":"Fuerza"} ${cur[c]?"anotada":"desmarcada"} en esta jornada.`;return}
   if(k==="cena"){const mn=menu[addDays(f,-1)];if(!mn)return;cur.comidas.push({id:"m"+Date.now(),hora:hhmm(new Date()),desc:mn.plato,picoteo:false,hambre:null,motivo:"",fuente:"social"});await guardar("Cena registrada.",true);$("aMsg").textContent="Cena anotada.";return}
   const antes={acoste:cur.acoste,levante:cur.levante,agua:cur.agua||0};
   if(k==="dor")cur.acoste=hhmm(new Date());
