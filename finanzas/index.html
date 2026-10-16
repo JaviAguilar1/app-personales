@@ -247,6 +247,7 @@ function render(){
   const ok=t=>{$("msg").textContent=t;abiertoE=null};
   document.querySelectorAll("[data-sm]").forEach(b=>b.onclick=async()=>{const id=b.dataset.sm,v=Number($("em_"+id).value);if(!$("em_"+id).value||v<0){$("msg").textContent="Escribí un monto válido.";return}if(!db)return;
     try{await setAj(id,{monto:v,omitir:false});const k=`${mes}_${id}`;if(M[k])await db.doc("movs/"+k).update({monto:v});ok(`${F[id].nombre}: ${fmt(v)} solo para este mes.`)}catch(e){$("msg").textContent="No se guardó."}});
+  document.querySelectorAll("[data-sf]").forEach(b=>b.onclick=async()=>{const id=b.dataset.sf,v=$("ef_"+id).value;if(!v){$("msg").textContent="Elegí una fecha.";return}try{await db.doc(`movs/${mes}_${id}`).update({fecha:v});ok(`${F[id].nombre}: fecha ${v.slice(8)}/${v.slice(5,7)}.`)}catch(e){$("msg").textContent="No se guardó."}});
   document.querySelectorAll("[data-um]").forEach(b=>b.onclick=async()=>{const id=b.dataset.um;try{await db.doc(`movs/${mes}_${id}`).delete();ok(`${F[id].nombre}: desmarcado.`)}catch(e){}});
   document.querySelectorAll("[data-om]").forEach(b=>b.onclick=async()=>{const id=b.dataset.om,k=`${mes}_${id}`;try{if(M[k])await db.doc("movs/"+k).delete();await setAj(id,{omitir:true});ok(`${F[id].nombre}: no aplica este mes.`)}catch(e){$("msg").textContent="No se guardó."}});
   document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{const id=b.dataset.rm,k=`${mes}_${id}`;try{await setAj(id,{monto:null});if(M[k])await db.doc("movs/"+k).update({monto:F[id].monto});ok(`${F[id].nombre}: vuelve al monto fijo.`)}catch(e){}});
@@ -277,14 +278,15 @@ $("gGuardar").onclick=async()=>{
   const d={tipo:gTipo,monto:v,fecha:f,mes:f.slice(0,7),cat:gTipo==="gasto"?gCat:"",sub:gTipo==="gasto"&&gCat==="Servicios"?gSub:"",impulso:gImp==="Sí",motivo:gImp==="Sí"?(gMot||""):"",nota:$("gNota").value.trim()};
   try{await db.collection("vars").add(d);$("gBox").hidden=true;$("msg").textContent=`${gTipo==="ingreso"?"Ingreso":"Gasto"} de ${fmt(v)} guardado.`}catch(e){$("msg").textContent="No se guardó ("+(e&&e.code||"error")+")."}
 };
+function fechaDef(x){const h=new Date().toLocaleDateString("en-CA");if(mes===mesHoy)return h;return `${mes}-${String(Math.min(x.dia||1,diasDe(mes))).padStart(2,"0")}`}
 function fila(x){
   const ing=x.f.tipo==="ingreso",d=hoy.getDate(),vencido=mes<mesHoy?!x.mov:(mes===mesHoy&&!x.mov&&x.dia<d);
   const cuota=x.f.cuotas?` · cuota ${difM(x.f.cuotas.desde,mes)+1}/${x.f.cuotas.total}`:"";
   const sub=x.mov?`${ing?"cobrado":"pagado"} el ${x.mov.fecha.slice(8)}/${x.mov.fecha.slice(5,7)}`:`${ing?"cobro":"vence"} el ${x.dia}${cuota}`;
   const btn=x.mov?`<button class="okb" data-undo="${x.id}" aria-label="Desmarcar ${esc(x.f.nombre)}">✓ ${ing?"Cobrado":"Pagado"}</button>`:`<button data-mark="${x.id}">${ing?"Cobrado":"Pagado"}</button>`;
   let h=`<div class="it${x.mov?" done":""}"><span><span class="nm">${esc(x.f.nombre)}</span>${x.f.cuotas?'<span class="tag">cuotas</span>':""}${x.aj&&x.aj.monto!=null&&!x.mov?'<span class="tag">ajustado</span>':""}<button class="ghost" data-edit="${x.id}" style="padding:0 6px;font-size:.8rem">Editar</button><small class="${vencido?"venc":""}">${vencido?(mes<mesHoy?"quedó sin marcar":"vencido · "):""}${mes<mesHoy&&vencido?"":sub}${x.mov&&cuota?cuota:""}</small></span><span class="n">${fmt(monto(x))}</span>${btn}`;
-  if(abierto===x.id&&!x.mov)h+=`<div class="ed"><label class="ey" for="mm_${x.id}">Monto real</label><input type="number" id="mm_${x.id}" value="${monto(x)}" min="0"><label class="ey"><input type="checkbox" id="up_${x.id}" checked style="width:auto"> usarlo de ahora en más</label><button class="pri" data-ok="${x.id}">Confirmar</button><button class="ghost" data-cancel="1">Cancelar</button></div>`;
-  if(abiertoE===x.id)h+=`<div class="ed"><label class="ey" for="em_${x.id}">Monto de ${MESES[Number(mes.slice(5))-1]}</label><input type="number" id="em_${x.id}" value="${monto(x)}" min="0"><button class="pri" data-sm="${x.id}">Guardar solo este mes</button>${x.mov?`<button data-um="${x.id}">Desmarcar ${ing?"cobrado":"pagado"}</button>`:""}<button class="ghost" data-om="${x.id}">No aplica este mes</button>${x.aj&&x.aj.monto!=null?`<button class="ghost" data-rm="${x.id}">Volver al monto fijo (${fmt(x.f.monto)})</button>`:""}<button class="ghost" data-ce="1">Cerrar</button></div>`;
+  if(abierto===x.id&&!x.mov)h+=`<div class="ed"><label class="ey" for="mm_${x.id}">Monto real</label><input type="number" id="mm_${x.id}" value="${monto(x)}" min="0"><label class="ey" for="mf_${x.id}">Fecha</label><input type="date" id="mf_${x.id}" value="${fechaDef(x)}"><label class="ey"><input type="checkbox" id="up_${x.id}" checked style="width:auto"> usarlo de ahora en más</label><button class="pri" data-ok="${x.id}">Confirmar</button><button class="ghost" data-cancel="1">Cancelar</button></div>`;
+  if(abiertoE===x.id)h+=`<div class="ed"><label class="ey" for="em_${x.id}">Monto de ${MESES[Number(mes.slice(5))-1]}</label><input type="number" id="em_${x.id}" value="${monto(x)}" min="0"><button class="pri" data-sm="${x.id}">Guardar solo este mes</button>${x.mov?`<label class="ey" for="ef_${x.id}">Fecha de ${ing?"cobro":"pago"}</label><input type="date" id="ef_${x.id}" value="${x.mov.fecha}"><button data-sf="${x.id}">Guardar fecha</button><button data-um="${x.id}">Desmarcar ${ing?"cobrado":"pagado"}</button>`:""}<button class="ghost" data-om="${x.id}">No aplica este mes</button>${x.aj&&x.aj.monto!=null?`<button class="ghost" data-rm="${x.id}">Volver al monto fijo (${fmt(x.f.monto)})</button>`:""}<button class="ghost" data-ce="1">Cerrar</button></div>`;
   return h+"</div>";
 }
 function filaOmit(x){return`<div class="it"><span><span class="nm" style="color:var(--mute)">${esc(x.f.nombre)}</span><small>no aplica este mes</small></span><span class="n" style="color:var(--mute)">${fmt(x.f.monto)}</span><button class="ghost" data-ro="${x.id}">Restaurar</button></div>`}
@@ -292,8 +294,8 @@ async function setAj(id,data){const k=`${mes}_${id}`;await db.doc("ajustes/"+k).
 async function confirmar(id){
   const v=Number($("mm_"+id).value);if(!$("mm_"+id).value||isNaN(v)||v<0){$("msg").textContent="Escribí un monto válido.";return}
   if(!db){$("msg").textContent="Abrí la página con tu cuenta de Claude para guardar.";return}
-  const f=F[id],up=$("up_"+id).checked;abierto=null;
-  try{await db.doc(`movs/${mes}_${id}`).set({mes,fijoId:id,monto:v,fecha:new Date().toLocaleDateString("en-CA")});
+  const f=F[id],up=$("up_"+id).checked,fe=$("mf_"+id).value||new Date().toLocaleDateString("en-CA");abierto=null;
+  try{await db.doc(`movs/${mes}_${id}`).set({mes,fijoId:id,monto:v,fecha:fe});
     if(up&&v!==f.monto&&!f.cuotas)await db.doc("fijos/"+id).update({monto:v});
     $("msg").textContent=`${f.nombre}: ${f.tipo==="ingreso"?"cobrado":"pagado"} ${fmt(v)}.`}
   catch(e){$("msg").textContent="No se guardó ("+(e&&e.code||"error")+")."}
