@@ -137,19 +137,15 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
   </section>
 
   <section class="card hero" aria-labelledby="t-libre">
-    <div class="row sp">
-      <button class="ghost" id="mPrev" aria-label="Mes anterior">◀</button>
-      <span class="ey" id="mesLbl"></span>
-      <button class="ghost" id="mNext" aria-label="Mes siguiente">▶</button>
-    </div>
-    <div><span class="ey" id="t-libre">Libre este mes</span><div class="big" id="libre">—</div></div>
+    <div><span class="ey" id="t-libre">Tenés disponible</span><div class="big" id="libre">—</div><span class="ey" id="hoyLbl"></span></div>
     <div class="stats">
-      <div class="stat"><b id="sIng">—</b><span>ingresos</span></div>
+      <div class="stat"><b id="sIng">—</b><span id="sIngSub">cobrado</span></div>
       <div class="stat"><b id="sPag">—</b><span>ya pagado</span></div>
       <div class="stat"><b id="sFal">—</b><span>falta pagar</span></div>
       <div class="stat"><b id="sVar">—</b><span>gastos variables</span></div>
     </div>
     <div class="bar" aria-hidden="true"><i id="barra" style="width:0"></i></div>
+    <p class="ey" id="proy" style="margin:0"></p>
     <div class="row"><button class="pri" id="gAbrir">+ Gasto</button><button id="iAbrir">+ Ingreso extra</button></div>
     <div class="ed" id="gBox" hidden style="display:grid;gap:10px;background:var(--card)">
       <div class="row"><input type="number" id="gMonto" placeholder="$ monto" aria-label="Monto" min="0" inputmode="decimal" style="font-size:1.3rem;width:8em"><input type="date" id="gFecha" aria-label="Fecha"></div>
@@ -160,6 +156,15 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
       <div class="row"><button class="pri" id="gGuardar">Guardar</button><button class="ghost" id="gCancel">Cancelar</button></div>
     </div>
     <span class="msg" id="msg" role="status"></span>
+  </section>
+
+  <section class="card" aria-label="Elegir mes">
+    <div class="row sp">
+      <button class="ghost" id="mPrev" aria-label="Mes anterior">◀</button>
+      <span class="ey" id="mesLbl" style="font-weight:700"></span>
+      <button class="ghost" id="mNext" aria-label="Mes siguiente">▶</button>
+    </div>
+    <span class="ey" id="mesAyuda">Lo de abajo muestra este mes. Cambiá de mes para ver o corregir otros.</span>
   </section>
 
   <section class="card" aria-labelledby="t-var">
@@ -211,16 +216,23 @@ const monto=x=>x.mov?x.mov.monto:(x.aj&&x.aj.monto!=null?x.aj.monto:x.f.monto);
 
 function render(){
   const[y,mm]=mes.split("-").map(Number);
-  $("mesLbl").textContent=`${MESES[mm-1][0].toUpperCase()+MESES[mm-1].slice(1)} ${y}${mes===mesHoy?` · quedan ${diasDe(mes)-hoy.getDate()} días`:""}`;
-  $("t-libre").textContent=mes===mesHoy?"Libre este mes":mes<mesHoy?"Cómo cerró el mes":"Libre previsto";
+  $("mesLbl").textContent=`${MESES[mm-1][0].toUpperCase()+MESES[mm-1].slice(1)} ${y}${mes===mesHoy?" (este mes)":""}`;
   const its=items(mes),ing=its.filter(x=>x.f.tipo==="ingreso"),gas=its.filter(x=>x.f.tipo!=="ingreso");
-  const tIng=ing.reduce((a,x)=>a+monto(x),0),tGas=gas.reduce((a,x)=>a+monto(x),0),pag=gas.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
-  const vs=Object.entries(V).filter(([,v])=>v.mes===mes),vG=vs.filter(([,v])=>v.tipo!=="ingreso").reduce((a,[,v])=>a+v.monto,0),vI=vs.filter(([,v])=>v.tipo==="ingreso").reduce((a,[,v])=>a+v.monto,0);
-  const libre=tIng+vI-tGas-vG;$("sVar").textContent=fmt(vG);renderVars(vs,vG);
-  $("libre").textContent=its.length||vs.length?fmt(Math.abs(libre)):"—";$("libre").classList.toggle("neg",libre<0);
-  if(libre<0)$("t-libre").textContent=mes===mesHoy?"Este mes faltan":mes<mesHoy?"Ese mes faltaron":"Faltarían";
-  $("sIng").textContent=fmt(tIng+vI);$("sPag").textContent=fmt(pag);$("sFal").textContent=fmt(tGas-pag);
-  $("barra").style.width=(tGas?Math.round(pag/tGas*100):0)+"%";
+  const vs=Object.entries(V).filter(([,v])=>v.mes===mes),vG=vs.filter(([,v])=>v.tipo!=="ingreso").reduce((a,[,v])=>a+v.monto,0);
+  renderVars(vs,vG);
+  // panel principal: siempre el mes actual y solo lo marcado
+  {const iH=items(mesHoy),inH=iH.filter(x=>x.f.tipo==="ingreso"),gaH=iH.filter(x=>x.f.tipo!=="ingreso");
+   const vH=Object.values(V).filter(v=>v.mes===mesHoy),vGH=vH.filter(v=>v.tipo!=="ingreso").reduce((a,v)=>a+v.monto,0),vIH=vH.filter(v=>v.tipo==="ingreso").reduce((a,v)=>a+v.monto,0);
+   const prevI=inH.reduce((a,x)=>a+monto(x),0),cob=inH.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
+   const tG=gaH.reduce((a,x)=>a+monto(x),0),pag=gaH.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
+   const disp=cob+vIH-pag-vGH,proy=prevI+vIH-tG-vGH;
+   $("t-libre").textContent=disp<0?"Te faltan":"Tenés disponible";
+   $("libre").textContent=fmt(Math.abs(disp));$("libre").classList.toggle("neg",disp<0);
+   $("hoyLbl").textContent=`${MESES[hoy.getMonth()][0].toUpperCase()+MESES[hoy.getMonth()].slice(1)} · quedan ${diasDe(mesHoy)-hoy.getDate()} días`;
+   $("sIng").textContent=fmt(cob+vIH);$("sIngSub").textContent=`cobrado (de ${fmt(prevI+vIH)})`;
+   $("sPag").textContent=fmt(pag);$("sFal").textContent=fmt(tG-pag);$("sVar").textContent=fmt(vGH);
+   $("barra").style.width=(tG?Math.round(pag/tG*100):0)+"%";
+   $("proy").textContent=iH.length||vH.length?`Si cobrás y pagás todo lo previsto: ${proy<0?"te faltan":"te quedan"} ${fmt(Math.abs(proy))}.`:"";}
   $("lIng").innerHTML=ing.length?ing.map(fila).join(""):'<p class="empty">Sin ingresos este mes. Cargalos en la tuerquita.</p>';
   $("lGas").innerHTML=gas.length?gas.map(fila).join(""):'<p class="empty">Sin gastos fijos este mes. Cargalos en la tuerquita.</p>';
   const om=omitidos(mes);$("lOmit").innerHTML=om.length?`<details><summary class="ey" style="cursor:pointer;font-weight:700">No aplican este mes (${om.length})</summary>${om.map(filaOmit).join("")}</details>`:"";
