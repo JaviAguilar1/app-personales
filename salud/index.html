@@ -162,6 +162,38 @@ summary{cursor:pointer;color:var(--mute);font-weight:700;font-size:.9rem}
       </div>
       <div class="row"><button class="pri" id="ejOk">Guardar</button><button class="ghost" id="ejCancel">Cancelar</button><span class="msg" id="ejMsg" role="status"></span></div>
     </div>
+    <div class="box" id="guiaBox" hidden>
+      <h3 style="margin:4px 0 2px">1. Meditación diaria</h3>
+      <p class="sub" style="margin:0 0 6px"><b>Para qué:</b> no es relajarte en el momento (eso pasa como efecto secundario) — es entrenar la atención. El ejercicio real es notar cuándo la mente se fue y traerla de vuelta. Ese músculo, con el tiempo, se usa también fuera de la meditación: para no quedarte enganchado rumiando un problema.</p>
+      <p class="sub" style="margin:0 0 6px"><b>Cómo:</b></p>
+      <p class="sub" style="margin:0 0 4px">1) Sentate cómodo, espalda relativamente derecha. No hace falta posición de yoga ni silencio total.<br>
+      2) Cerrá los ojos o bajá la mirada.<br>
+      3) Llevá la atención a la respiración — el aire entrando y saliendo, sin cambiarla, solo notarla.<br>
+      4) Cuando la mente se vaya (va a pasar, todo el tiempo, es normal) la traés de vuelta a la respiración, sin enojarte con vos mismo.<br>
+      5) Repetís el paso 4 todas las veces que haga falta durante los minutos que elegiste.</p>
+      <p class="sub" style="margin:0 0 6px"><b>Errores que te frenan:</b> pensar que "bien hecho" es no tener pensamientos (no va a pasar nunca, ni con años de práctica); abandonar porque "no sirve" la primera semana (el efecto es acumulativo, se nota recién semana 3-4); buscar sentir algo especial durante la sesión (el efecto se ve después, en el día, no en el momento).</p>
+      <p class="sub" style="margin:0 0 14px"><b>Cuándo:</b> 10 minutos, mismo horario todos los días — apenas te despertás suele ser lo más fácil de sostener.</p>
+      <h3 style="margin:4px 0 2px">2. Respiración 4-6</h3>
+      <p class="sub" style="margin:0 0 6px"><b>Para qué:</b> es para el momento, no acumulativo. Activa el nervio vago, baja la frecuencia cardíaca y corta un pico de ansiedad o tensión casi al instante.</p>
+      <p class="sub" style="margin:0 0 6px"><b>Cómo:</b> inhalá contando 4 segundos, exhalá contando 6 (más largo que lo que inhalaste). Repetí durante 2-3 minutos. Si podés, por la nariz y despacio.</p>
+      <p class="sub" style="margin:0 0 14px"><b>Cuándo:</b> en el momento que notes que la cabeza se acelera o el cuerpo se tensa — antes de una llamada difícil, antes de una consulta médica, en medio de un pico de estrés en el laburo.</p>
+      <h3 style="margin:4px 0 2px">3. Nombrar lo que sentís (affect labeling)</h3>
+      <p class="sub" style="margin:0 0 6px"><b>Para qué:</b> ponerle nombre específico a una emoción baja su intensidad de forma medible — está documentado que reduce la actividad de la amígdala casi en el momento en que lo hacés.</p>
+      <p class="sub" style="margin:0 0 6px"><b>Cómo:</b> cuando sientas algo fuerte, decilo o escribilo con precisión. No "estoy mal", sino "tengo miedo", "estoy frustrado", "tengo ansiedad". Cuanto más específico, mejor funciona.</p>
+      <p class="sub" style="margin:0 0 4px"><b>Cuándo:</b> apenas notes la emoción, no horas después — ahí es cuando más efecto tiene.</p>
+      <div class="row"><button class="ghost" id="guiaCerrar">Cerrar</button></div>
+    </div>
+    <div class="box" id="medBox" hidden>
+      <p class="sub">Sentate cómodo, atención en la respiración. Cuando la mente se vaya —va a pasar, todo el tiempo— traela de vuelta, sin pelearte. Eso es el ejercicio, no un fallo. No busques sentir algo especial ahora: el efecto se nota después, en cómo reaccionás en el día.</p>
+      <div class="row"><div><div class="lbl">Minutos</div><input type="number" id="medMin" min="1" max="120" step="1" style="width:7em" value="10"></div></div>
+      <div class="row"><button class="pri" id="medOk">Guardar</button><button class="ghost" id="medCancel">Cancelar</button><span class="msg" id="medMsg" role="status"></span></div>
+    </div>
+    <div class="box" id="emoBox" hidden>
+      <p class="sub">Nombrá lo que sentís, lo más preciso posible (ej: "ansiedad", no "estoy mal"). Ponerle nombre específico baja su intensidad.</p>
+      <div class="row"><div style="flex:1;min-width:180px"><div class="lbl">Qué sentís</div><input type="text" id="emoTxt" style="width:100%;box-sizing:border-box" placeholder="Ej: frustración"></div><div><div class="lbl">Hora</div><input type="time" id="emoHora"></div></div>
+      <div class="row"><button class="pri" id="emoOk">Guardar</button><button class="ghost" id="emoCancel">Cancelar</button><span class="msg" id="emoMsg" role="status"></span></div>
+    </div>
+    <div class="box" id="claridadBox" hidden><span>Claridad mental hoy (1 muy disperso, 5 muy claro)</span><div class="row"><div class="chips" id="claridadQ"></div><button class="ghost" id="claridadSkip">Ahora no</button></div></div>
     <div class="box" id="comiBox" hidden>
       <div class="row"><button id="kComida" aria-pressed="false">Comida</button><button id="kPico" aria-pressed="false">Picoteo</button></div>
       <div class="row">
@@ -263,7 +295,7 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 const madrugada=h=>h&&Number(h.slice(0,2))<6;
 function jornadaDe(d){const dow=d.getDay(),m=d.getHours()*60+d.getMinutes(),x=new Date(d);if(dow>=1&&dow<=5&&m>=1200)x.setDate(x.getDate()+1);else if((dow===0||dow===1)&&m<300)x.setDate(x.getDate()-1);return iso(x)}
 const jornadaHoy=()=>jornadaDe(new Date());
-let bloqueo=0,undoT=null,energiaF=null,calidadF=null,calidadV=null;
+let bloqueo=0,undoT=null,energiaF=null,calidadF=null,calidadV=null,claridadF=null;
 
 let col=null,dias={},menu={},menuMeta=null,cur=null;
 let cfg={semana:{1:["Solo club","14:00","21:30"],2:["Solo NOC","14:00","21:00"],3:["Club + NOC","14:00","21:30"],4:["Club + NOC","14:00","21:30"],5:["Club + NOC","14:00","21:30"],6:["Jornada club","18:00","06:30"],0:["Libre","22:00","05:30"]},identidad:"Soy alguien que cuida su descanso y lo que come",inicio:jornadaHoy(),revisiones:{},diaPeso:0};
@@ -287,7 +319,7 @@ function cumple(f,fase){
   return ejsDe(d).length>0;
 }
 
-function blank(f){return{fecha:f,tipo:tipoDe(f)[0],acoste:"",levante:"",extras:[],comidas:[],agua:0,ejercicios:[],energia:null,peso:null,nota:""}}
+function blank(f){return{fecha:f,tipo:tipoDe(f)[0],acoste:"",levante:"",extras:[],comidas:[],agua:0,ejercicios:[],energia:null,peso:null,nota:"",meditacion:0,respiracion:0,emociones:[],claridad:null}}
 const clone=o=>JSON.parse(JSON.stringify(o));
 
 function renderFoco(){
@@ -311,6 +343,8 @@ chips($("energiaQ"),[1,2,3,4,5],async v=>{$("energiaBox").hidden=true;if($("fech
 $("energiaSkip").onclick=()=>{$("energiaBox").hidden=true};
 chips($("calidadQ"),[1,2,3,4,5],async v=>{$("calidadBox").hidden=true;if($("fecha").value!==calidadF)ir(calidadF);cur.calidad=v;await guardar("Calidad anotada.",true);$("aMsg").textContent=`Calidad del sueño: ${v}. Buen día.`});
 $("calidadSkip").onclick=()=>{$("calidadBox").hidden=true};
+chips($("claridadQ"),[1,2,3,4,5],async v=>{$("claridadBox").hidden=true;if($("fecha").value!==claridadF)ir(claridadF);cur.claridad=v;await guardar("Claridad anotada.",true);$("aMsg").textContent=`Claridad mental: ${v}. Buen día.`});
+$("claridadSkip").onclick=()=>{$("claridadBox").hidden=true};
 chips($("calidad"),[1,2,3,4,5],v=>{calidadV=calidadV===v?null:v;paint($("calidad"),calidadV);auto()});
 function renderFalta(){
   const y=addDays(jornadaHoy(),-1),d=dias[y];let ok=false;try{ok=localStorage.getItem("faltaOk_"+y)==="1"}catch(e){}
@@ -330,7 +364,7 @@ function renderAhora(){
   else if(!d.acoste&&p&&p.acoste&&!p.levante){txt=`Te acostaste a las ${p.acoste}. Cuando te levantes, marcalo.`;btns.push(["Me levanté","lev",pf])}
   else if(!d.acoste&&t[1]){const falta=mins(hhmm(now),t[1]);txt=falta<=180?`Tu bloque de sueño empieza a las ${t[1]}${falta>0?` (en ${fmtM(falta)})`:""}.`:`Objetivo de sueño hoy: ${t[1]} a ${t[2]}.`;btns.push(["Me voy a dormir","dor",f])}
   else txt=d.levante?`Dormiste ${fmtM(sueTot(d))} al cierre de esta jornada.`:"¿Qué estás haciendo?";
-  btns.push(["Comí algo","comi",f]);{const mn=menu[addDays(f,-1)];if(mn&&!d.socialNo&&!(d.comidas||[]).some(m=>m.fuente==="social"))btns.push([`Cené: ${mn.plato}`,"cena",f])}btns.push([`+1 vaso de agua (${d.agua||0})`,"agua",f]);btns.push([ejsDe(d).length?`Ejercicio (${ejsDe(d).length})`:"Ejercicio","ej",f]);
+  btns.push(["Comí algo","comi",f]);{const mn=menu[addDays(f,-1)];if(mn&&!d.socialNo&&!(d.comidas||[]).some(m=>m.fuente==="social"))btns.push([`Cené: ${mn.plato}`,"cena",f])}btns.push([`+1 vaso de agua (${d.agua||0})`,"agua",f]);btns.push([ejsDe(d).length?`Ejercicio (${ejsDe(d).length})`:"Ejercicio","ej",f]);btns.push([d.meditacion?`Medité (${d.meditacion}')`:"Medité","med",f]);btns.push([`Respiré 4-6 (${d.respiracion||0})`,"resp",f]);btns.push(["Nombrar lo que siento","emo",f]);btns.push(["Guía: cómo hacerlas","guia",f]);
   $("t-ahora").textContent=txt;
   $("pesoBox").hidden=!(parse(f).getDay()===Number(cfg.diaPeso)&&!d.peso);
   const lock=Date.now()-bloqueo<3000;
@@ -342,6 +376,10 @@ async function accion(k,f){
   if(k==="comi"){abrirComi();return}
   if($("fecha").value!==f)ir(f);
   if(k==="ej"){abrirEj(false);return}
+  if(k==="guia"){$("guiaBox").hidden=!$("guiaBox").hidden;if(!$("guiaBox").hidden)$("guiaBox").scrollIntoView({behavior:"smooth",block:"start"});return}
+  if(k==="med"){$("medBox").hidden=false;return}
+  if(k==="emo"){$("emoHora").value=hhmm(new Date());$("emoBox").hidden=false;return}
+  if(k==="resp"){cur.respiracion=(cur.respiracion||0)+1;await guardar("Respiración anotada.",true);$("aMsg").textContent=`Respiré 4-6: ${cur.respiracion} vez${cur.respiracion===1?"":"es"} hoy.`;return}
   if(k==="cena"){const mn=menu[addDays(f,-1)];if(!mn)return;cur.comidas.push({id:"m"+Date.now(),hora:hhmm(new Date()),desc:mn.plato,picoteo:false,hambre:null,motivo:"",fuente:"social"});await guardar("Cena registrada.",true);$("aMsg").textContent="Cena anotada.";return}
   const antes={acoste:cur.acoste,levante:cur.levante,agua:cur.agua||0};
   if(k==="dor")cur.acoste=hhmm(new Date());
@@ -351,6 +389,7 @@ async function accion(k,f){
   $("aMsg").textContent=k==="dor"?`Me acosté ${cur.acoste}.`:k==="agua"?`Agua: ${cur.agua} vaso${cur.agua===1?"":"s"} en esta jornada.`:`Me levanté ${cur.levante}.`;
   if(k==="dor"&&!cur.energia){energiaF=f;$("energiaBox").hidden=false}
   if(k==="lev"&&!cur.calidad){calidadF=f;$("calidadBox").hidden=false}
+  if(k==="lev"&&!cur.claridad){claridadF=f;$("claridadBox").hidden=false}
   $("undo").hidden=false;clearTimeout(undoT);
   $("undo").onclick=async()=>{ir(f);cur.acoste=antes.acoste;cur.levante=antes.levante;cur.agua=antes.agua;$("undo").hidden=true;await guardar("Deshecho.",true);$("aMsg").textContent="Deshecho."};
   undoT=setTimeout(()=>{$("undo").hidden=true;$("aMsg").textContent=""},20000);
@@ -437,6 +476,19 @@ $("ejOk").onclick=async()=>{
   const m=$("ejMin").value===""?null:Math.round(Number($("ejMin").value));if(m!=null&&(isNaN(m)||m<1||m>600)){$("ejMsg").textContent="Minutos entre 1 y 600.";return}
   leerForm();cur.ejercicios=[...(cur.ejercicios||[]),{id:"e"+Date.now(),tipo,min:m,hora:$("ejHora").value||""}];
   $("ejBox").hidden=true;await guardar(`${tipo} anotado.`,true);$("aMsg").textContent=`${tipo} anotado en esta jornada.`;
+};
+$("guiaCerrar").onclick=()=>{$("guiaBox").hidden=true};
+$("medCancel").onclick=()=>{$("medBox").hidden=true};
+$("medOk").onclick=async()=>{
+  const m=Math.round(Number($("medMin").value));if(isNaN(m)||m<1||m>120){$("medMsg").textContent="Minutos entre 1 y 120.";return}
+  cur.meditacion=(cur.meditacion||0)+m;
+  $("medBox").hidden=true;await guardar("Meditación anotada.",true);$("aMsg").textContent=`Medité ${m}' (total hoy: ${cur.meditacion}').`;
+};
+$("emoCancel").onclick=()=>{$("emoBox").hidden=true};
+$("emoOk").onclick=async()=>{
+  const t=$("emoTxt").value.trim();if(!t){$("emoMsg").textContent="Escribí qué sentís.";return}
+  cur.emociones=[...(cur.emociones||[]),{id:"m"+Date.now(),hora:$("emoHora").value||hhmm(new Date()),texto:t}];
+  $("emoTxt").value="";$("emoBox").hidden=true;await guardar("Anotado.",true);$("aMsg").textContent="Anotado.";
 };
 $("tipo").addEventListener("change",()=>{const x=Object.values(cfg.semana).find(v=>v[0]===$("tipo").value);$("objetivo").textContent=x&&x[1]?`Objetivo de sueño: ${x[1]} a ${x[2]}`:""});
 $("editBtn").onclick=()=>{const p=$("jornBody"),a=p.hidden;p.hidden=!a;$("editBtn").setAttribute("aria-expanded",String(a));$("editBtn").textContent=a?"Cerrar edición":"Editar jornada"};
