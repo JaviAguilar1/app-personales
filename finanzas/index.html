@@ -171,6 +171,7 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
       <button class="ghost" id="mNext" aria-label="Mes siguiente">▶</button>
     </div>
     <span class="ey" id="mesAyuda"></span>
+    <span class="ey" id="cierreAviso" hidden style="color:var(--warn);font-weight:700"></span>
     <div class="row" id="cierreRow"></div>
     <div class="ed" id="cBox" hidden style="display:grid;gap:10px;background:var(--card)"></div>
   </section>
@@ -212,9 +213,15 @@ const addM=(m,n)=>{const[y,mm]=m.split("-").map(Number);return ym(new Date(y,mm-
 const difM=(a,b)=>{const[y1,m1]=a.split("-").map(Number),[y2,m2]=b.split("-").map(Number);return(y2-y1)*12+(m2-m1)};
 const diasDe=m=>{const[y,mm]=m.split("-").map(Number);return new Date(y,mm,0).getDate()};
 const fmt=v=>(v<0?"−":"")+"$ "+Math.abs(Math.round(v)).toLocaleString("es-AR");
+const errTxt=(e,q)=>{const c=(e&&e.code)||"error";return/permission|denied/i.test(c)
+  ?q+": Firebase no deja escribir ahí. Revisá las reglas de la base.":q+" ("+c+")."};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let dispHoy=0,db=null,F={},M={},P={},V={},A={},S={},CIE={},MESACT=null,mesTocado=false,abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null;
-const mesAct=()=>MESACT||mesHoy,nomMes=m=>MESES[Number(m.slice(5))-1],cap=t=>t[0].toUpperCase()+t.slice(1);
+let dispHoy=0,db=null,F={},M={},P={},V={},A={},CIE={},mesTocado=false,abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null;
+const nomMes=m=>MESES[Number(m.slice(5))-1],cap=t=>t[0].toUpperCase()+t.slice(1);
+// El mes activo sale de los cierres guardados: el siguiente al ultimo mes cerrado.
+function ultCierre(){const ks=Object.keys(CIE).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort();return ks.length?ks[ks.length-1]:null}
+function mesAct(){const u=ultCierre();return u?addM(u,1):mesHoy}
+const saldoIni=m=>{const c=CIE[addM(m,-1)];return(c&&Number(c.inicialSiguiente))||0};
 const CONF={};
 function dosToques(b,k,txt,fn){if(CONF[k])b.textContent=txt;b.onclick=()=>{if(CONF[k]){delete CONF[k];fn()}else{CONF[k]=1;b.textContent=txt}}}
 const CATS=["Super y comida","Delivery","Transporte","Salidas","Servicios","Casa","Salud","Hijos","Ropa","Otros"],SERVS=["Luz","Gas","Agua","Internet","Celular","Cable / streaming","Otro"],MOTS=["Cansancio","Ansiedad","Aburrimiento","Social","Antojo"];
@@ -231,7 +238,7 @@ function resumen(m){
   const prevI=inm.reduce((a,x)=>a+monto(x),0),cob=inm.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
   const tG=gam.reduce((a,x)=>a+monto(x),0),pag=gam.filter(x=>x.mov).reduce((a,x)=>a+monto(x),0);
   const pd=Object.values(P).reduce((a,p)=>a+(p.pagos||[]).filter(q=>(q.fecha||"").slice(0,7)===m).reduce((s2,q)=>s2+q.monto,0),0);
-  const ini0=(S[m]&&S[m].inicial)||0,ent=cob+vI,sal=pag+vG+pd;
+  const ini0=saldoIni(m),ent=cob+vI,sal=pag+vG+pd;
   return{its,inm,gam,vv,vG,vI,prevI,cob,tG,pag,pd,ini0,ent,sal,disp:ini0+ent-sal,proy:ini0+prevI+vI-tG-vG-pd,
     sinCobrar:inm.filter(x=>!x.mov),sinPagar:gam.filter(x=>!x.mov)}
 }
@@ -281,14 +288,17 @@ function render(){
 }
 
 function renderCierre(){
-  const MA=mesAct(),SIG=addM(MA,1),ANT=addM(MA,-1);
+  const MA=mesAct(),SIG=addM(MA,1),ANT=addM(MA,-1),atras=difM(MA,mesHoy);
+  $("cierreAviso").textContent=atras>0
+    ?`Ya estamos en ${nomMes(mesHoy)} y el tablero sigue en ${nomMes(MA)}. Cerralo para avanzar.`:"";
+  $("cierreAviso").hidden=atras<=0;
   $("cierreRow").innerHTML=`<button class="pri" id="cAbrir">Cerrar ${nomMes(MA)} y arrancar ${nomMes(SIG)}</button>`
     +(CIE[ANT]?`<button class="ghost" id="cUndo">Deshacer el cierre de ${nomMes(ANT)}</button>`:"");
   $("cAbrir").onclick=()=>{if($("cBox").hidden)abrirCierre();else $("cBox").hidden=true};
   if(CIE[ANT])$("cUndo").onclick=async()=>{if(!db)return;
-    try{await db.doc("config/estado").set({mesActivo:ANT});await db.doc("cierres/"+ANT).delete();await db.doc("saldos/"+MA).delete();
-      MESACT=ANT;mes=ANT;mesTocado=false;$("cBox").hidden=true;$("msg").textContent=`Cierre de ${nomMes(ANT)} deshecho.`;render()}
-    catch(e){$("msg").textContent="No se pudo deshacer."}};
+    try{await db.doc("cierres/"+ANT).delete();delete CIE[ANT];
+      mes=ANT;mesTocado=false;$("cBox").hidden=true;$("msg").textContent=`Cierre de ${nomMes(ANT)} deshecho.`;render()}
+    catch(e){$("msg").textContent=errTxt(e,"No se pudo deshacer el cierre")}};
 }
 function abrirCierre(){
   const MA=mesAct(),SIG=addM(MA,1),R=resumen(MA),falta=[...R.sinCobrar,...R.sinPagar];
@@ -307,13 +317,11 @@ function abrirCierre(){
     const ini=Number($("cIni").value)||0;$("cOk").disabled=true;$("cMsg").textContent="Cerrando…";
     try{
       await db.doc("cierres/"+MA).set({mes:MA,cerradoEl:new Date().toLocaleDateString("en-CA"),
-        entro:R.ent,salio:R.sal,quedo:R.disp,previsto:R.proy,inicial:R.ini0,
+        entro:R.ent,salio:R.sal,quedo:R.disp,previsto:R.proy,inicial:R.ini0,inicialSiguiente:ini,
         sinMarcar:falta.map(x=>({nombre:x.f.nombre,tipo:x.f.tipo||"gasto",monto:monto(x)}))});
-      await db.doc("saldos/"+SIG).set({mes:SIG,inicial:ini});
-      await db.doc("config/estado").set({mesActivo:SIG});
-      MESACT=SIG;mes=SIG;mesTocado=false;$("cBox").hidden=true;
+      CIE[MA]=CIE[MA]||{mes:MA};mes=SIG;mesTocado=false;$("cBox").hidden=true;
       $("msg").textContent=`${cap(nomMes(MA))} cerrado. Arrancás ${nomMes(SIG)} con ${fmt(ini)}.`;render()}
-    catch(e){$("cOk").disabled=false;$("cMsg").textContent="No se pudo cerrar ("+(e&&e.code||"error")+")."}};
+    catch(e){$("cOk").disabled=false;$("cMsg").textContent=errTxt(e,"No se pudo cerrar el mes")}};
 }
 function renderVars(vs,vG){
   const g=vs.filter(([,v])=>v.tipo!=="ingreso"),imp=g.filter(([,v])=>v.impulso);
@@ -453,8 +461,7 @@ render();
   db=await claude.use("db");
   if(!db){$("msg").textContent="Para ver y guardar tus datos, abrí la página con tu cuenta de Claude.";return}
   const sub=(c,set)=>db.collection(c).onSnapshot(s=>{const o={};s.docs.forEach(x=>{const v=x.data();if(v)o[x.id]=v});set(o);render();if(!$("ajustes").hidden)renderFijos()},e=>{$("msg").textContent="No se pudieron leer los datos ("+(e&&e.code||"error")+")."});
-  sub("fijos",o=>F=o);sub("movs",o=>M=o);sub("pendientes",o=>P=o);sub("vars",o=>V=o);sub("ajustes",o=>A=o);sub("saldos",o=>S=o);sub("cierres",o=>CIE=o);
-  db.doc("config/estado").onSnapshot(x=>{const v=x.data();MESACT=(v&&v.mesActivo)||null;if(!mesTocado)mes=mesAct();render()},()=>{});db.doc("config/plan").onSnapshot(x=>{const v=x.data();if(v&&v.metodo){PLAN.metodo=v.metodo;renderPend()}},()=>{});
+  sub("fijos",o=>F=o);sub("movs",o=>M=o);sub("pendientes",o=>P=o);sub("vars",o=>V=o);sub("ajustes",o=>A=o);sub("cierres",o=>{CIE=o;if(!mesTocado)mes=mesAct()});db.doc("config/plan").onSnapshot(x=>{const v=x.data();if(v&&v.metodo){PLAN.metodo=v.metodo;renderPend()}},()=>{});
 })();
 </script>
 <div id="login" hidden style="position:fixed;inset:0;z-index:99;background:var(--bg);display:grid;place-items:center;padding:24px"><div style="display:grid;gap:14px;max-width:320px;text-align:center"><h1 style="margin:0">Economía</h1><p style="margin:0;color:var(--mute)">Entrá con tu cuenta de Google para ver tus datos.</p><button class="pri" onclick="entrar()" style="font-size:1rem;padding:12px">Entrar con Google</button><span id="loginMsg" style="color:var(--mute);font-size:.9rem"></span></div></div>
@@ -504,7 +511,7 @@ $("xPdf").onclick=async()=>{
 ["dMes","dPend"].forEach(id=>{const d=$(id);try{d.open=localStorage.getItem("plg_"+id)==="1"}catch(e){}d.addEventListener("toggle",()=>{try{localStorage.setItem("plg_"+id,d.open?"1":"0")}catch(e){}})});
 
 document.addEventListener("visibilitychange",()=>{if(document.hidden)return;const n=new Date();
-  if(ym(n)!==mesHoy||n.getDate()!==hoy.getDate()){hoy=n;mesHoy=ym(n);if(!mesTocado&&!MESACT)mes=mesHoy;render()}});
+  if(ym(n)!==mesHoy||n.getDate()!==hoy.getDate()){hoy=n;mesHoy=ym(n);if(!mesTocado)mes=mesAct();render()}});
 
 $("aAbrir").onclick=()=>{const b=$("aBox");b.hidden=!b.hidden;$("aReal").value="";$("aPrev").textContent=`La app calcula ${fmt(dispHoy)}.`};
 $("aCancel").onclick=()=>{$("aBox").hidden=true};
