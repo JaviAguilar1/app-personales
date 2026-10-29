@@ -111,7 +111,7 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
   <section class="card" id="ajustes" hidden aria-labelledby="t-aj">
     <div class="row sp"><h2 id="t-aj">Ajustes</h2><button class="ghost" id="ajCerrar">Cerrar</button></div>
     <h3>Mis fijos</h3>
-    <p class="ey" style="margin:0">Se cargan una vez y se repiten cada mes. Las cuotas aparecen solo en los meses que corresponden.</p>
+    <p class="ey" style="margin:0">Se cargan una vez y se repiten cada mes. "Arranca en" evita que aparezcan en meses anteriores (dejalo vacío para que valgan siempre). Las cuotas aparecen solo en los meses que corresponden.</p>
     <div id="fijosLista"></div>
     <span class="msg" id="fMsg" role="status"></span>
     <details>
@@ -123,9 +123,9 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
         <input type="number" id="nDia" placeholder="Día" aria-label="Día del mes" min="1" max="31" style="width:5em">
       </div>
       <div class="row" style="margin-top:8px">
-        <label class="ey" for="nCuotas">Cuotas (vacío si es todos los meses)</label>
+        <label class="ey" for="nDesde">Arranca en</label><input type="month" id="nDesde" aria-label="Mes en que arranca">
+        <label class="ey" for="nCuotas">Cuotas (vacío = todos los meses)</label>
         <input type="number" id="nCuotas" min="1" max="120" style="width:5em" aria-label="Cantidad de cuotas">
-        <label class="ey" for="nDesde">desde</label><input type="month" id="nDesde" aria-label="Mes de la primera cuota">
         <button class="pri" id="nAgregar">Agregar</button><span class="msg" id="nMsg" role="status"></span>
       </div>
     </details>
@@ -434,11 +434,13 @@ function renderPend(){
 function renderFijos(){
   const es=Object.entries(F).filter(([,f])=>f.activo!==false).sort((a,b)=>(a[1].tipo===b[1].tipo?a[1].dia-b[1].dia:a[1].tipo==="ingreso"?-1:1));
   $("fijosLista").innerHTML=es.map(([id,f])=>`<div class="fj"><div class="row"><span class="tag ${f.tipo==="ingreso"?"in":""}" style="margin:0">${f.tipo==="ingreso"?"ingreso":"gasto"}</span><input type="text" id="fn_${id}" value="${esc(f.nombre)}" aria-label="Nombre" style="flex:1;min-width:120px"></div>
-  <div class="row"><input type="number" id="fm_${id}" value="${f.monto}" min="0" aria-label="Monto"><label class="ey">día <input type="number" id="fd_${id}" value="${f.dia}" min="1" max="31" style="width:4.5em" aria-label="Día"></label>${f.cuotas?`<span class="ey">${f.cuotas.total} cuotas desde ${f.cuotas.desde.slice(5)}/${f.cuotas.desde.slice(0,4)}</span>`:""}
+  <div class="row"><input type="number" id="fm_${id}" value="${f.monto}" min="0" aria-label="Monto"><label class="ey">día <input type="number" id="fd_${id}" value="${f.dia}" min="1" max="31" style="width:4.5em" aria-label="Día"></label>${f.cuotas?`<span class="ey">${f.cuotas.total} cuotas desde ${f.cuotas.desde.slice(5)}/${f.cuotas.desde.slice(0,4)}</span>`:`<label class="ey">arranca en <input type="month" id="fs_${id}" value="${f.desde||""}" aria-label="Mes en que arranca"></label>`}
   <button data-gf="${id}">Guardar</button><button class="ghost" data-df="${id}">Quitar</button></div></div>`).join("")||'<p class="empty">Todavía no hay fijos.</p>';
   document.querySelectorAll("[data-gf]").forEach(b=>b.onclick=async()=>{const id=b.dataset.gf,n=$("fn_"+id).value.trim(),m=Number($("fm_"+id).value),d=Number($("fd_"+id).value);
     if(!n||isNaN(m)||m<0||!(d>=1&&d<=31)){$("fMsg").textContent="Revisá los datos de ese fijo.";return}
-    try{await db.doc("fijos/"+id).update({nombre:n,monto:m,dia:d});$("fMsg").textContent=`${n}: guardado ✓`}catch(e){$("fMsg").textContent="No se guardó."}});
+    const ds=$("fs_"+id)?$("fs_"+id).value:null;
+    try{await db.doc("fijos/"+id).update(ds===null?{nombre:n,monto:m,dia:d}:{nombre:n,monto:m,dia:d,desde:ds||null});
+      $("fMsg").textContent=`${n}: guardado ✓${ds?` · arranca en ${nomMes(ds)} ${ds.slice(0,4)}`:""}`}catch(e){$("fMsg").textContent="No se guardó."}});
   document.querySelectorAll("[data-df]").forEach(b=>dosToques(b,"df:"+b.dataset.df,"¿Quitar? Tocá de nuevo",()=>{db&&db.doc("fijos/"+b.dataset.df).update({activo:false})}));
 }
 $("nDesde").value=mesHoy;
@@ -446,8 +448,9 @@ $("nAgregar").onclick=async()=>{
   const n=$("nNombre").value.trim(),m=Number($("nMonto").value),d=Number($("nDia").value),c=Number($("nCuotas").value);
   if(!n){$("nMsg").textContent="Poné un nombre.";return}if(!$("nMonto").value||m<0){$("nMsg").textContent="Poné el monto.";return}if(!(d>=1&&d<=31)){$("nMsg").textContent="El día va de 1 a 31.";return}
   if(!db){$("nMsg").textContent="Abrí la página con tu cuenta.";return}
-  const data={nombre:n,tipo:$("nTipo").value,monto:m,dia:d,activo:true,desde:mesAct()};if(c>0)data.cuotas={total:c,desde:$("nDesde").value||mesHoy};
-  try{await db.collection("fijos").add(data);$("nMsg").textContent="Agregado.";["nNombre","nMonto","nDia","nCuotas"].forEach(k=>$(k).value="")}catch(e){$("nMsg").textContent="No se guardó."}
+  const des=$("nDesde").value||mesAct();
+  const data={nombre:n,tipo:$("nTipo").value,monto:m,dia:d,activo:true,desde:des};if(c>0)data.cuotas={total:c,desde:des};
+  try{await db.collection("fijos").add(data);$("nMsg").textContent=`Agregado, desde ${nomMes(des)} ${des.slice(0,4)}.`;["nNombre","nMonto","nDia","nCuotas"].forEach(k=>$(k).value="")}catch(e){$("nMsg").textContent="No se guardó."}
 };
 $("pAgregar").onclick=async()=>{const n=$("pNombre").value.trim(),m=Number($("pMonto").value)||0;if(!n){$("pMsg").textContent="Poné un nombre.";return}if(!db)return;
   try{await db.collection("pendientes").add({nombre:n,monto:m,inicial:m,pasos:[],resuelto:false});$("pMsg").textContent="Agregado.";$("pNombre").value="";$("pMonto").value=""}catch(e){$("pMsg").textContent="No se guardó."}};
