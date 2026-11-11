@@ -216,7 +216,7 @@ const fmt=v=>(v<0?"−":"")+"$ "+Math.abs(Math.round(v)).toLocaleString("es-AR")
 const errTxt=(e,q)=>{const c=(e&&e.code)||"error";return/permission|denied/i.test(c)
   ?q+": Firebase no deja escribir ahí. Revisá las reglas de la base.":q+" ("+c+")."};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let dispHoy=0,db=null,F={},M={},P={},V={},A={},CIE={},mesTocado=false,abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null;
+let dispHoy=0,db=null,F={},M={},P={},V={},A={},CIE={},mesTocado=false,abiertoE=null,PLAN={metodo:"tasa"},abiertoD=null,mes=mesHoy,abierto=null,gTipo="gasto",gCat=null,gSub=null,gImp=null,gMot=null,gEdit=null;
 const nomMes=m=>MESES[Number(m.slice(5))-1],cap=t=>t[0].toUpperCase()+t.slice(1);
 // El mes activo sale de los cierres guardados: el siguiente al ultimo mes cerrado.
 function ultCierre(){const ks=Object.keys(CIE).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort();return ks.length?ks[ks.length-1]:null}
@@ -329,14 +329,20 @@ function renderVars(vs,vG){
   const by={};g.forEach(([,v])=>by[v.cat||"Otros"]=(by[v.cat||"Otros"]||0)+v.monto);
   const mx=Math.max(1,...Object.values(by));
   $("varCats").innerHTML=g.length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([c,t])=>`<details class="vcat"><summary class="cat" style="cursor:pointer"><span>${esc(c)}</span><div class="bar"><i style="width:${Math.round(t/mx*100)}%"></i></div><span style="font-family:var(--f-data)">${fmt(t)}</span></summary><div style="padding:4px 0 8px 10px">${g.filter(([,v])=>(v.cat||"Otros")===c).sort((a,b)=>a[1].fecha<b[1].fecha?1:-1).map(([,v])=>`<div class="it"><span>${esc(v.nota||v.sub||"(sin detalle)")}<small>${v.fecha.slice(8)}/${v.fecha.slice(5,7)}${v.sub&&v.nota?" · "+esc(v.sub):""}${v.impulso?" · impulso"+(v.motivo?" ("+esc(v.motivo.toLowerCase())+")":""):""}</small></span><span class="n">${fmt(v.monto)}</span></div>`).join("")}</div></details>`).join(""):'<p class="empty">Todavía no cargaste gastos variables este mes. Tocá "+ Gasto" arriba.</p>';
-  $("varList").innerHTML=vs.sort((a,b)=>a[1].fecha<b[1].fecha?1:-1).map(([id,v])=>`<div class="it"><span>${esc(v.nota||(v.tipo==="ingreso"?"Ingreso extra":v.cat+(v.sub?" · "+v.sub:"")))}${v.impulso?'<span class="tag" style="background:var(--warnbg);color:var(--warn)">impulso</span>':""}<small>${v.fecha.slice(8)}/${v.fecha.slice(5,7)}${v.nota?" · "+esc(v.tipo==="ingreso"?"Ingreso extra":v.cat+(v.sub?" · "+v.sub:"")):""}${v.motivo?" · "+esc(v.motivo.toLowerCase()):""}</small></span><span class="n">${v.tipo==="ingreso"?"+":""}${fmt(v.monto)}</span><button class="ghost" data-dv="${id}" aria-label="Borrar">✕</button></div>`).join("")||'<p class="empty">Sin movimientos.</p>';
+  $("varList").innerHTML=vs.sort((a,b)=>a[1].fecha<b[1].fecha?1:-1).map(([id,v])=>`<div class="it"><span>${esc(v.nota||(v.tipo==="ingreso"?"Ingreso extra":v.cat+(v.sub?" · "+v.sub:"")))}${v.impulso?'<span class="tag" style="background:var(--warnbg);color:var(--warn)">impulso</span>':""}<small>${v.fecha.slice(8)}/${v.fecha.slice(5,7)}${v.nota?" · "+esc(v.tipo==="ingreso"?"Ingreso extra":v.cat+(v.sub?" · "+v.sub:"")):""}${v.motivo?" · "+esc(v.motivo.toLowerCase()):""}</small></span><span class="n">${v.tipo==="ingreso"?"+":""}${fmt(v.monto)}</span><button class="ghost" data-ev="${id}" aria-label="Editar">✎</button><button class="ghost" data-dv="${id}" aria-label="Borrar">✕</button></div>`).join("")||'<p class="empty">Sin movimientos.</p>';
+  document.querySelectorAll("[data-ev]").forEach(b=>b.onclick=()=>editarG(b.dataset.ev));
   document.querySelectorAll("[data-dv]").forEach(b=>dosToques(b,"dv:"+b.dataset.dv,"¿Borrar?",()=>{db&&db.doc("vars/"+b.dataset.dv).delete()}));
 }
 function chipsEn(el,vals,get,set){el.innerHTML="";vals.forEach(v=>{const b=document.createElement("button");b.type="button";b.textContent=v;b.setAttribute("aria-pressed","false");b.onclick=()=>{set(get()===v?null:v);[...el.children].forEach(x=>x.setAttribute("aria-pressed",String(x.textContent===get())));if(el.id==="gImp")$("gMotRow").hidden=gImp!=="Sí";if(el.id==="gCat"){$("gSubRow").hidden=gCat!=="Servicios";if(gCat!=="Servicios"){gSub=null;[...$("gSub").children].forEach(x=>x.setAttribute("aria-pressed","false"))}}};el.appendChild(b)})}
 chipsEn($("gCat"),CATS,()=>gCat,v=>gCat=v);chipsEn($("gSub"),SERVS,()=>gSub,v=>gSub=v);chipsEn($("gImp"),["Sí","No"],()=>gImp,v=>gImp=v);chipsEn($("gMot"),MOTS,()=>gMot,v=>gMot=v);
-function abrirG(t){gTipo=t;gCat=null;gSub=null;gImp=null;gMot=null;$("gSubRow").hidden=true;["gCat","gSub","gImp","gMot"].forEach(k=>[...$(k).children].forEach(x=>x.setAttribute("aria-pressed","false")));
+function abrirG(t){gEdit=null;gTipo=t;gCat=null;gSub=null;gImp=null;gMot=null;$("gSubRow").hidden=true;["gCat","gSub","gImp","gMot"].forEach(k=>[...$(k).children].forEach(x=>x.setAttribute("aria-pressed","false")));
   $("gCatRow").hidden=$("gImpRow").hidden=t==="ingreso";$("gMotRow").hidden=true;$("gMonto").value="";$("gNota").value="";$("gFecha").value=new Date().toLocaleDateString("en-CA");
   $("gGuardar").textContent=t==="ingreso"?"Guardar ingreso":"Guardar gasto";$("gBox").hidden=false;$("gMonto").focus()}
+function editarG(id){const v=V[id];if(!v)return;abrirG(v.tipo==="ingreso"?"ingreso":"gasto");gEdit=id;
+  gCat=v.cat||null;gSub=v.sub||null;gImp=v.tipo==="ingreso"?null:(v.impulso?"Sí":"No");gMot=v.motivo||null;
+  const mk=(k,x)=>[...$(k).children].forEach(c=>c.setAttribute("aria-pressed",String(c.textContent===x)));
+  mk("gCat",gCat);mk("gSub",gSub);mk("gImp",gImp);mk("gMot",gMot);$("gSubRow").hidden=gCat!=="Servicios";$("gMotRow").hidden=gImp!=="Sí";
+  $("gMonto").value=v.monto;$("gFecha").value=v.fecha;$("gNota").value=v.nota||"";$("gGuardar").textContent="Guardar cambios"}
 $("gAbrir").onclick=()=>abrirG("gasto");$("iAbrir").onclick=()=>abrirG("ingreso");$("gCancel").onclick=()=>$("gBox").hidden=true;
 $("gGuardar").onclick=async()=>{
   const v=Number($("gMonto").value),f=$("gFecha").value;
@@ -345,7 +351,7 @@ $("gGuardar").onclick=async()=>{
   if(gTipo==="gasto"&&gCat==="Servicios"&&!gSub){$("msg").textContent="Elegí qué servicio.";return}
   if(!db){$("msg").textContent="Abrí la página con tu cuenta para guardar.";return}
   const d={tipo:gTipo,monto:v,fecha:f,mes:f.slice(0,7),cat:gTipo==="gasto"?gCat:"",sub:gTipo==="gasto"&&gCat==="Servicios"?gSub:"",impulso:gImp==="Sí",motivo:gImp==="Sí"?(gMot||""):"",nota:$("gNota").value.trim()};
-  try{await db.collection("vars").add(d);$("gBox").hidden=true;$("msg").textContent=`${gTipo==="ingreso"?"Ingreso":"Gasto"} de ${fmt(v)} guardado.`}catch(e){$("msg").textContent="No se guardó ("+(e&&e.code||"error")+")."}
+  try{if(gEdit){const o=V[gEdit]||{};if(o.ajuste){d.cat=o.cat;d.ajuste=true}await db.doc("vars/"+gEdit).update(d);gEdit=null;$("gBox").hidden=true;$("msg").textContent="Cambios guardados."}else{await db.collection("vars").add(d);$("gBox").hidden=true;$("msg").textContent=`${gTipo==="ingreso"?"Ingreso":"Gasto"} de ${fmt(v)} guardado.`}}catch(e){$("msg").textContent="No se guardó ("+(e&&e.code||"error")+")."}
 };
 function fechaDef(x){const h=new Date().toLocaleDateString("en-CA");if(mes===mesHoy)return h;return `${mes}-${String(Math.min(x.dia||1,diasDe(mes))).padStart(2,"0")}`}
 function fila(x){
