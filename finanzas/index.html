@@ -143,7 +143,7 @@ table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:
       <div class="stat"><span class="ey" style="font-weight:700">Entró</span><div class="ln"><span>Ingresos fijos</span><b id="hIF">—</b></div><div class="ln"><span>Ingresos extra</span><b id="hIE">—</b></div><div class="ln tot"><span>Total</span><b id="hIT">—</b></div></div>
       <div class="stat"><span class="ey" style="font-weight:700">Salió</span><div class="ln"><span>Gastos fijos</span><b id="hGF">—</b></div><div class="ln"><span>Gastos variables</span><b id="hGV">—</b></div><div class="ln"><span>Pagos de deudas</span><b id="hPD">—</b></div><div class="ln tot"><span>Total</span><b id="hGT">—</b></div></div>
     </div>
-    <div class="stat"><span class="ey" style="font-weight:700">Falta</span><div class="ln"><span>Cobrar</span><b id="hFC">—</b></div><div class="ln"><span>Pagar</span><b id="hFP">—</b></div>
+    <div class="stat"><span class="ey" style="font-weight:700">Falta</span><div class="ln"><span>Cobrar</span><b id="hFC">—</b></div><div class="ln"><span>Pagar</span><b id="hFP">—</b></div><div class="ln tot"><span>Diferencia</span><b id="hFD">—</b></div>
       <div class="bar" aria-hidden="true" style="margin-top:6px"><i id="barra" style="width:0"></i></div><span class="ey" id="barLbl"></span></div>
     <p class="ey" id="proy" style="margin:0"></p>
     <div class="row"><button class="pri" id="gAbrir">+ Gasto</button><button id="iAbrir">+ Ingreso extra</button><button class="ghost" id="aAbrir">Ajustar saldo</button></div>
@@ -260,8 +260,9 @@ function render(){
    $("hIF").textContent=fmt(R.cob);$("hIE").textContent=fmt(R.vI);$("hIT").textContent=fmt(R.ent);
    $("hGF").textContent=fmt(R.pag);$("hGV").textContent=fmt(R.vG);$("hPD").textContent=fmt(R.pd);$("hGT").textContent=fmt(R.sal);
    $("hFC").textContent=fmt(R.prevI-R.cob);$("hFP").textContent=fmt(R.tG-R.pag);
+   const dif=(R.prevI-R.cob)-(R.tG-R.pag),sg=n=>(n<0?"−":"+")+fmt(Math.abs(n));$("hFD").textContent=sg(dif);$("hFD").style.color=dif<0?"var(--bad)":"var(--ok)";
    const pc=R.tG?Math.round(R.pag/R.tG*100):0;$("barra").style.width=pc+"%";$("barLbl").textContent=R.tG?`${pc}% de los gastos fijos pagados`:"";
-   $("proy").textContent=R.its.length||R.vv.length?`Si cobrás y pagás todo lo previsto: ${R.proy<0?"te faltan":"te quedan"} ${fmt(Math.abs(R.proy))}.`:"";}
+   $("proy").textContent=R.its.length||R.vv.length?`Saldo hoy ${sg(R.disp)} + diferencia ${sg(dif)} = cerrarías el mes con ${sg(R.proy)}.`:"";}
   $("mesN").textContent=`${gas.filter(x=>x.mov).length+ing.filter(x=>x.mov).length}/${gas.length+ing.length} marcados`;
   $("lIng").innerHTML=ing.length?ing.map(fila).join(""):'<p class="empty">Sin ingresos este mes. Cargalos en la tuerquita.</p>';
   $("lGas").innerHTML=gas.length?gas.map(fila).join(""):'<p class="empty">Sin gastos fijos este mes. Cargalos en la tuerquita.</p>';
